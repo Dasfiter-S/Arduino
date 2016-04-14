@@ -1,9 +1,16 @@
+/*
+  Coded by
+  Ricardo Carretero
+  & servo functions by Tim Enbom
+*/
 //from front of sensor
-//5v, ground, signal
-//2/24/2016 EDIT
+//220 ohm resistor is signal, ground, 5v
+//3/24/2016 EDIT
 //Make sure the ground all goes to the same place
-//#include "DualVNH5019MotorShield.h"
-//DualVNH5019MotorShield md;
+#include "DualVNH5019MotorShield.h"
+#include <Servo.h>  
+DualVNH5019MotorShield md;
+Servo myServo;
 //Pins for the sensors========================================================================================
 #define Pin2 22 //left side
 #define Pin3 24
@@ -12,33 +19,50 @@
 #define Pin6 30 // right side
 //============================================================================================================
 uint64_t currentTime = 0;
-
+int rotate360Speed = 52; // 1.29s per rotation; 12.91s for 10 rotations
+int rotate360Time = 1376; // off by a fraction of a degree.
+int rotateStopSpeed = 91;
+int Pin32 = 32;
+int Pin34 = 34;
+double servoLastTimeActive = 0;
 
 void setup() {
   Serial.begin(9600);
- // md.init();
+  md.init();
+  myServo.attach(Pin32);
 }
 //MAIN LOOP===================================================================================================
 void loop() {
-  currentTime = millis();           // Refresh Timer
-  Serial.print("Time: "); 
-  long time = currentTime; //If using currentTime print won't work by reference
-  Serial.print(time );
-  Serial.print("    ");
-  //sensorState();
-  virtualTrack();
+  currentTime = millis();    // Refresh Timer
+  //Serial.print("Time: "); 
+  //long time = currentTime; //If using currentTime print won't work by reference
+  //Serial.print(time );
+  //Serial.print("    ");
+  //drive(sensorState());
+  inputValues();           //Debug values for sensors
+  //virtualTrack();          //Virtual Track for debugging
+  rotate360();
+  //myServo.write(rotateStopSpeed);
 }
-//============================================================================================================
-int isOnLine(int sensorIn){         //
+//Servo Functions=============================================================================================================
+void rotate360() {
+  myServo.write(rotate360Speed);
+  //delay(rotate360Time);
+}
+void lastTimeActive(){
+  servoLastTimeActive = currentTime - servoLastTimeActive; 
+}
+//Sensor Functions============================================================================================================
+int isOnLine(int sensorIn){       //
    pinMode(sensorIn, OUTPUT);     // Make pin OUTPUT
    digitalWrite(sensorIn, HIGH);  // Pin HIGH (discharge capacitor)
    pinMode(sensorIn, INPUT);      // Make pin INPUT
    digitalWrite(sensorIn, LOW);   // Turn off internal pullups
    if (!digitalRead(sensorIn)) {  // Pin goes HIGH which means its on the black line
-      return 1;
+      return 0;
    }
    if(digitalRead(sensorIn)){     // Pin goes LOW which means its not on the black line
-      return 0;
+      return 1;
    }
 }
 /*
@@ -54,78 +78,103 @@ int sensorState() {
   Serial.println(currentState);
   return currentState;
 }
+
 //PATTERN RECOGNITION=========================================================================================
 void drive(int state) {
  if (state == 4) {    //00100
-  //straight();
+  forward();
   Serial.println("Straight");
  }
  if (state == 0) {    //00000
-  //Straight();
+  forward();
   Serial.println("Start Area");
  } 
- if (state == 28) {   //11100
+ if (state == 7) {   //00111
+ /*
+  servoLastTimeActive = currentTime;
+  lastTimeActive();
+  if (servoLastTimeActive >) {
+    rotate360();
+  }
+  */
   leftTurn();
   Serial.println("Left turn");
  } 
- if (state == 7) {   //00111
+ if (state == 3) {   //00011
+  leftTurn();
+  Serial.println("Left turn");
+ }
+ if (state == 28) {   //11100
   rightTurn();
   Serial.println("Right turn");
  } 
+ if (state == 24) {   //11000
+  rightTurn();
+  Serial.println("Right turn");
+ }
  if (state == 31) {   //11111 second time we encounter this it has to be a right turn
-    //straight();  
-    if (currentTime < 9500) {
+    forward();  
+    if (currentTime < 25000) {
       Serial.println("Straight");
-      //straight();
+      forward();
     }
-    if ((currentTime > 9500) && (currentTime < 25000)) { 
+    if ((currentTime > 25000) && (currentTime < 40000)) { 
       Serial.println("Right turn");
       rightTurn();
     }
-    if (currentTime > 25000) {
+    if (currentTime > 40000) {
       Serial.println("Left turn");
       leftTurn();
     }
   
  } 
+ 
  //Correction routines-------------
- if (state == 0) {    //01100
-  //slightRight();
+ if (state == 12) {    //01100
+ slightRight();
  } 
- if (state == 0) {    //01000
-  //slightRight();
+ if (state == 8) {    //01000
+  slightRight();
  } 
- if (state == 0) {    //00110
-  //slightLeft();
+ if (state == 6) {    //00110
+  slightLeft();
  }  
- if (state == 0) {    //00010
-  //slightLeft();
+ if (state == 2) {    //00010
+  slightLeft();
  } 
 }
 //MOTOR FUNCTIONS=============================================================================================
 
 void forward() {  //Moves the robot forward
-  //md.setM1Speed(-300); //right side //More powerful
-  //md.setM2Speed(380);//left side
+  md.setM1Speed(-300); //right side //More powerful
+  md.setM2Speed(300);//left side
 }
 void backward() { //Moves te robot backwards
-  //md.setM1Speed(300); //right side
-  //md.setM2Speed(-380);//left side
+  md.setM1Speed(300); //right side
+  md.setM2Speed(-300);//left side
 }
 void leftTurn() { //Turns the robot left from the center
-  //md.setM1Speed(-300); //Forward right side
-  //md.setM2Speed(-380);//Reverse left side
-  delay(60);
+  md.setM1Speed(-300); //Forward right side
+  md.setM2Speed(-300);//Reverse left side
+  delay(180);
 }
 void rightTurn() { //Turns the robot right from the center
- //md.setM1Speed(300); //Reverse right side
- //md.setM2Speed(380);//Forward left side
+ md.setM1Speed(300); //Reverse right side
+ md.setM2Speed(300);//Forward left side
  delay(60);
 }
+void slightLeft() {
+  md.setM1Speed(-300); //right side //300
+  md.setM2Speed(100);//left side   //380
+}
+void slightRight() {
+  md.setM1Speed(-100); //right side //300
+  md.setM2Speed(300);//left side   //380
+}
 void stopMotors() {//Stop the robot
- //md.setM1Speed(0);
+ md.setM1Speed(0);
  delayMicroseconds(10);
- //md.setM2Speed(0);
+ md.setM2Speed(0);
  delayMicroseconds(10);
 }
 
@@ -291,3 +340,4 @@ void virtualTrack() {
   
   
 */
+
