@@ -1,7 +1,7 @@
 Vendbot library Version 1.3.1
 -------------------------------
 
-TestDriveQTI_V3 code has not changed. Added MotorVNH and MotorVNH_Servo. MotorVNH tests the motorshield with default values for calibration. MotorVNH_Servo calibrates the motors and the servos for simultaneous control.
+TestDriveQTI_V3 code has not changed. Added MotorVNH and MotorVNH_Servo. MotorVNH tests the motorshield with default values for calibration. MotorVNH_Servo calibrates the motors and the servos for simultaneous control. Also added Open_CV for VS 2013 express. Needs work on the navigation algorithm.
 
 Vendbot library Version 1.3
 -------------------------------
