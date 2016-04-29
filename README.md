@@ -1,3 +1,8 @@
+Vendbot library Version 1.3.2
+-------------------------------
+All changes done to TestDriveQTI_V3
+Removed Pow functions from isOnLine() function. It was simply a waste of processing power to calculate a constant that could simply be multiplied in. Changed delay() in the motor functions. Cleaned up some of the navigation tests. Readjusted motor directions.
+
 Vendbot library Version 1.3.1
 -------------------------------
 
