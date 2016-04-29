@@ -74,7 +74,7 @@ int isOnLine(int sensorIn){       //
 */
 int sensorState() { 
   int currentState = 0;
-  currentState = ((isOnLine(Pin6)*pow(2,4)) + (isOnLine(Pin5)*pow(2,3)) + (isOnLine(Pin4)*pow(2,2)) + (isOnLine(Pin3)*pow(2,1)) + isOnLine(Pin2));
+  currentState = ((isOnLine(Pin6)*16) + (isOnLine(Pin5)*8) + (isOnLine(Pin4)*4) + (isOnLine(Pin3)*2) + isOnLine(Pin2));
   Serial.println(currentState);
   return currentState;
 }
