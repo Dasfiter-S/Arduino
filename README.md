@@ -1,3 +1,7 @@
+Vendbot library Version 1.3.3
+-------------------------------
+Fixed the slightLeft() and slightRight() functions. They now work as intended. The robot can now navigate the track with 50% accuracy.
+
 Vendbot library Version 1.3.2
 -------------------------------
 All changes done to TestDriveQTI_V3
