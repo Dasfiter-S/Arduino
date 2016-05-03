@@ -30,7 +30,7 @@ int rotate360Time = 1376; // off by a fraction of a degree.
 int rotateStopSpeed = 92;
 int Pin32 = 32;
 int Pin34 = 34;
-int lastMovement = 0;
+int lastTurn = 0;
 float ratio = 0.166666;
 
 void setup() {
@@ -109,13 +109,11 @@ void drive(int state) {
   forward();
   //stopMotors();
   //Serial.println("Straight");
-  lastMovement == state;
  }
  if (state == 0) {    //00000
   //forward();
   stopMotors();
   //Serial.println("Start Area");
-  lastMovement == state;
  } 
  if (state == 7) {   //00111
  /*
@@ -125,11 +123,11 @@ void drive(int state) {
     Serial.println("Dropping Ring!");
   }
   */
-  if (lastMovement != 24 || 28) {
+  if (lastTurn != (24 || 28)) {
     stopMotors();
     leftTurn();
   }
-  lastMovement == state;
+  lastTurn == state;
   //Serial.println("Left turn");
  } 
  /*
@@ -142,11 +140,11 @@ void drive(int state) {
  }
  */
  if (state == 28) {   //11100
-   if (lastMovement != 7 || 3) {
+   if (lastTurn != (7 || 3)) {
     rightTurn();
   }
   //Serial.println("Right turn");
-  lastMovement == state;
+  lastTurn == state;
  } 
  /*
  if (state == 24) {   //11000
@@ -160,32 +158,28 @@ void drive(int state) {
  if (state == 31) {   //11111 second time we encounter this it has to be a right turn
     //forward();
   stopMotors();  
-    lastMovement == state;
+    //lastTurn == state;
  } 
  
  //Correction routines-------------
  if (state == 12) {    //01100
- //slightRight();
- forward();
- lastMovement == state;
+ slightRight();
+ //forward();
  //Serial.println("Correct right");
  } 
  if (state == 8) {    //01000
   slightRight();
-  lastMovement == state;
   //Serial.println("Correct right");
  } 
  
  if (state == 6) {    //00110
-  //slightLeft();
-  forward();
-  lastMovement == state;
+  slightLeft();
+  //forward();
   //Serial.println("Correct left");
  }
   
  if (state == 2) {    //00010
   slightLeft();
-  lastMovement == state;
   //Serial.println("Correct left");
  } 
 }
