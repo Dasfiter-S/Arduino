@@ -203,20 +203,34 @@ void backward() { //Moves the robot backwards
 void leftTurn() { //Turns the robot left from the center|| both have to be positive
   md.setM1Speed(400); //Forward right side 400
   md.setM2Speed(20);//Reverse left side     10
-  delay(600);
+  delay(630);
 }
 void rightTurn() { //Turns the robot right from the center|| both have to be negative
  md.setM1Speed(-400); //Reverse right side
  md.setM2Speed(-(motorRatio(400)));//Forward left side
- delay(600);
+ delay(630);
 }
+//------------------------------------------------------------
+/*
 void slightLeft() {
   md.setM1Speed(250); //right side //             75 
   md.setM2Speed(-(motorRatio(75)));//left side  //65
 }
+*/
+void slightLeft() {
+  md.setM1Speed(75); //right side //             75 
+  md.setM2Speed(65);//left side  //65
+}
+//-------------------------------------------------------------
+/*
 void slightRight() {
-  md.setM1Speed(-75); //right side //                   -50
+  md.setM1Speed(75); //right side //                   -50
   md.setM2Speed(-(motorRatio(250)));//left side  //     -75 forward
+}
+*/
+void slightRight() {
+  md.setM1Speed(-50); //right side //                   -50
+  md.setM2Speed(-75);//left side  //     -75 forward
 }
 void stopMotors() {//Stop the robot
  md.setM1Speed(-10);
