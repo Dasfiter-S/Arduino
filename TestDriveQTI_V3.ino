@@ -23,12 +23,15 @@ Servo myServo2;
 #define Pin6 30 // right side
 //============================================================================================================
 uint64_t currentTime = 0;
+uint64_t startTime = 0;
+unsigned long runTime = 0;
 int rotate360Speed = 40; // 1.29s per rotation; 12.91s for 10 rotations
 int rotate360Time = 1376; // off by a fraction of a degree.
 int rotateStopSpeed = 92;
 int Pin32 = 32;
 int Pin34 = 34;
 int lastMovement = 0;
+float ratio = 0.166666;
 
 void setup() {
   Serial.begin(9600);
@@ -39,13 +42,13 @@ void setup() {
 }
 //MAIN LOOP===================================================================================================
 void loop() {
-  currentTime = millis();    // Refresh Timer
+  //currentTime = micros();    // Refresh Timer
   //Serial.print("Time: "); 
   //long time = currentTime; //If using currentTime print won't work by reference
   //Serial.print(time );
   //Serial.print("    ");
   drive(sensorState());
-  inputValues();           //Debug values for sensors
+  //inputValues();           //Debug values for sensors
   //virtualTrack();          //Virtual Track for debugging
   //rotate360();
 }
@@ -65,16 +68,21 @@ void rotate360() {
 
 //Sensor Functions============================================================================================================
 int isOnLine(int sensorIn){       //
+   startTime = micros();
    pinMode(sensorIn, OUTPUT);     // Make pin OUTPUT
    digitalWrite(sensorIn, HIGH);  // Pin HIGH (discharge capacitor)
    pinMode(sensorIn, INPUT);      // Make pin INPUT
    digitalWrite(sensorIn, LOW);   // Turn off internal pullups
    if (!digitalRead(sensorIn)) {  // Pin goes HIGH which means its on the black line
       return 0;
-   }
+   
+ }
    if(digitalRead(sensorIn)){     // Pin goes LOW which means its not on the black line
       return 1;
    }
+   runTime = micros();
+   runTime -= startTime;
+   Serial.print("Time: "); Serial.println(runTime);
 }
 /*
   Taking the position of each of the 5 sensors into account, I arranged the 
@@ -84,9 +92,14 @@ int isOnLine(int sensorIn){       //
   a for loop that would ruin the continuity of multi tasking for the robot. 
 */
 int sensorState() { 
+  startTime = micros();
   int currentState = 0;
   currentState = ((isOnLine(Pin6)*16) + (isOnLine(Pin5)*8) + (isOnLine(Pin4)*4) + (isOnLine(Pin3)*2) + isOnLine(Pin2));
   Serial.println(currentState);
+  runTime = micros();
+  runTime -= startTime;
+  unsigned int temp = runTime;
+  Serial.print("Time: "); Serial.println(temp);
   return currentState;
 }
 
@@ -95,13 +108,13 @@ void drive(int state) {
  if (state == 4) {    //00100
   forward();
   //stopMotors();
-  Serial.println("Straight");
+  //Serial.println("Straight");
   lastMovement == state;
  }
  if (state == 0) {    //00000
   //forward();
   stopMotors();
-  Serial.println("Start Area");
+  //Serial.println("Start Area");
   lastMovement == state;
  } 
  if (state == 7) {   //00111
@@ -113,10 +126,11 @@ void drive(int state) {
   }
   */
   if (lastMovement != 24 || 28) {
+    stopMotors();
     leftTurn();
   }
   lastMovement == state;
-  Serial.println("Left turn");
+  //Serial.println("Left turn");
  } 
  /*
  if (state == 3) {   //00011
@@ -131,7 +145,7 @@ void drive(int state) {
    if (lastMovement != 7 || 3) {
     rightTurn();
   }
-  Serial.println("Right turn");
+  //Serial.println("Right turn");
   lastMovement == state;
  } 
  /*
@@ -154,63 +168,65 @@ void drive(int state) {
  //slightRight();
  forward();
  lastMovement == state;
- Serial.println("Correct right");
+ //Serial.println("Correct right");
  } 
  if (state == 8) {    //01000
   slightRight();
   lastMovement == state;
-  Serial.println("Correct right");
+  //Serial.println("Correct right");
  } 
  
  if (state == 6) {    //00110
   //slightLeft();
   forward();
   lastMovement == state;
-  Serial.println("Correct left");
+  //Serial.println("Correct left");
  }
   
  if (state == 2) {    //00010
   slightLeft();
   lastMovement == state;
-  Serial.println("Correct left");
+  //Serial.println("Correct left");
  } 
 }
 //MOTOR FUNCTIONS=============================================================================================
 
 void forward() {  //Moves the robot forward
-  md.setM1Speed(400); //right side //More powerful
-  md.setM2Speed(-400);//left side
-  delay(10);
+  md.setM1Speed(200); //right side                300
+  md.setM2Speed(-165);//left side //more powerful 247
+  //delay(10);
 }
 void backward() { //Moves the robot backwards
-  md.setM1Speed(-300); //right side
-  md.setM2Speed(300);//left side
+  md.setM1Speed(-300); //right side 300
+  md.setM2Speed(247);//left side    247
 }
-void leftTurn() { //Turns the robot left from the center
-  md.setM1Speed(400); //Forward right side
-  md.setM2Speed(400);//Reverse left side
-  delay(310);
+void leftTurn() { //Turns the robot left from the center|| both have to be positive
+  md.setM1Speed(400); //Forward right side 400
+  md.setM2Speed(20);//Reverse left side     10
+  delay(600);
 }
-void rightTurn() { //Turns the robot right from the center
+void rightTurn() { //Turns the robot right from the center|| both have to be negative
  md.setM1Speed(-400); //Reverse right side
- md.setM2Speed(-400);//Forward left side
- delay(310);
+ md.setM2Speed(-(motorRatio(400)));//Forward left side
+ delay(600);
 }
 void slightLeft() {
-  md.setM1Speed(400); //right side //300 Forward
-  md.setM2Speed(-200);//left side  //-200
+  md.setM1Speed(250); //right side //             75 
+  md.setM2Speed(-(motorRatio(75)));//left side  //65
 }
 void slightRight() {
-  md.setM1Speed(200); //right side //100
-  md.setM2Speed(-400);//left side  //-200 forward
+  md.setM1Speed(-75); //right side //                   -50
+  md.setM2Speed(-(motorRatio(250)));//left side  //     -75 forward
 }
 void stopMotors() {//Stop the robot
- md.setM1Speed(0);
- delayMicroseconds(10);
- md.setM2Speed(0);
- delayMicroseconds(10);
+ md.setM1Speed(-10);
+ delay(10);
+ md.setM2Speed(10);
+ delay(10);
 }
-
+float motorRatio(int power) {
+  return (power - power*ratio);
+}
 //END OF MOTOR FUNCTIONS===============================================================
 void inputValues() {
   Serial.print("Sensor 1: ");
