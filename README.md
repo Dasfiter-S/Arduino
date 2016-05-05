@@ -1,6 +1,6 @@
 Vendbot library Version 1.3.3
 -------------------------------
-Fixed the slightLeft() and slightRight() functions. They now work as intended. The robot can now navigate the track with 50% accuracy.
+Fixed the slightLeft() and slightRight() functions. They now work as intended. The robot can now navigate the track with 50% accuracy. Added Tim's navigation method. New file added TestDRiveQTI_V3_Tim_Nav.
 
 Vendbot library Version 1.3.2
 -------------------------------
