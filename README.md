@@ -1,3 +1,9 @@
+Vendbot library Version 2.0.0
+-----------------------------
+Navigation now working semi-reliably. The robot can traverse the entire track. Any reading of "00000" which means there is nothing will result in the robot backing up and trying to find the line again. 
+Incorporated a Nextion touchscreen for easier debugging and ring loading.
+Add the Nextion test file.
+
 Vendbot library Version 1.3.3
 -------------------------------
 Fixed the slightLeft() and slightRight() functions. They now work as intended. The robot can now navigate the track with 50% accuracy. Added Tim's navigation method. New file added TestDRiveQTI_V3_Tim_Nav.
