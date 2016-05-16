@@ -1,6 +1,6 @@
 Vendbot library Version 2.0.1
 -----------------------------
-Added Arduino Controls V2.hmi this file does not update time constantly flooding the TX RX system on the touchscreen. Buttons work.
+Added Competition_2016_WTouch.ino. Added Arduino Controls V2.hmi this file does not update time constantly flooding the TX RX system on the touchscreen. Buttons work.
 
 
 Vendbot library Version 2.0.0
