@@ -151,12 +151,45 @@ int isOnLine(int sensorIn) {
     PORTA &= ~_BV(PA6);
   if (sensorIn == 30)
     PORTC &= ~_BV(PC7);
-  if (!digitalRead(sensorIn)) {  // Pin goes HIGH which means its on the black line
-    return 0;
-
+  if (sensorIn == 22){
+    if(!(bit_is_clear(PINA,0))){
+      return 0;
+    }
+    else{
+      return 1;
+    }
   }
-  if (digitalRead(sensorIn)) {   // Pin goes LOW which means its not on the black line
-    return 1;
+  if (sensorIn == 24){
+    if(!(bit_is_clear(PINA,2))){
+      return 0;
+    }
+    else{
+      return 1;
+    }
+  }
+  if (sensorIn == 26){
+    if(!(bit_is_clear(PINA,4))){
+      return 0;
+    }
+    else{
+      return 1;
+    }
+  }
+  if (sensorIn == 28){
+    if(!(bit_is_clear(PINA,6))){
+      return 0;
+    }
+    else{
+      return 1;
+    }
+  }
+  if (sensorIn == 30){
+    if(!(bit_is_clear(PINC,7))){
+      return 0;
+    }
+    else{
+      return 1;
+    }
   }
 }
 /*
