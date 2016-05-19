@@ -1,6 +1,6 @@
 Vendbot library Version 2.0.1
 -----------------------------
-Competition_2016_WTouch_v2 was added. This file contains touchscreen support. it displays time on rouch intervals. It updates the next and last turns. It also has a diagnostics page that prints out the current line sensor state at a set refresh rate of about 300ms. 
+Competition_2016_WTouch_v2 was added. This file contains touchscreen support. it displays time on rouch intervals. It updates the next and last turns. It also has a diagnostics page that prints out the current line sensor state at a set refresh rate of about 300ms. Also added Arduino V3.HMI for the Touchscreen
 
 Vendbot library Version 2.0.1
 -----------------------------
