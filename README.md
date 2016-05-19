@@ -1,5 +1,9 @@
 Vendbot library Version 2.0.1
 -----------------------------
+Competition_2016_WTouch_v2 was added. This file contains touchscreen support. it displays time on rouch intervals. It updates the next and last turns. It also has a diagnostics page that prints out the current line sensor state at a set refresh rate of about 300ms. 
+
+Vendbot library Version 2.0.1
+-----------------------------
 TestDriveQTI_V3_Tim_nav_working.ino now supports true C statements for reading and writing to the line sensors.
 
 Vendbot library Version 2.0.1
