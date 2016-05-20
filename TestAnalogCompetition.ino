@@ -41,10 +41,13 @@ int rotateStopSpeed = 92;
 int Pin32 = 32;
 int Pin34 = 34;
 float ratio = 0.166;
+boolean stopRefresh = true;
 int lastTurn = 0;
-
 int pathState = 0;
-int pathArray[16] = {1, 0, 1, 1, 2, 2, 1, 1, 1, 2, 1, 1, 1, 0, 1, 1}; //1 = left, 0 straight, 2 right
+int pathArray[19] = {1, 0, 1, 1, 2, 2, 2, 1, 1, 1, 2, 1, 1, 1, 0, 1, 1, 0, 3}; //1 = left, 0 straight, 2 right
+int ringState = 0;
+int ringArray[] = {0, 0, 1, 2, 1, 0, 3, 3, 2, 3, 3, 3, 0};
+//int ringArray[] = {0, 0, 1, 1, 0, 3, 3, 3, 3, 3, 0};
 //See Path.png for navigation path
 void setup() {
   Serial.begin(9600);
@@ -62,64 +65,25 @@ void loop() {
   //Serial.print("    ");
   //testSensors();
   drive(sensorState());
-  //startRace();
-  //readScreen();
   //inputValues();           //Debug values for sensors
   //rotate360();
 }
-void startRace() {
-  if (startTrack == 1) {
-    drive(sensorState());
-    //Serial.println("Driving");
-  }
-  else {
-    stopMotors();
-    pathState = 0;
-  }
-}
-//Touch Screen functions======================================================================================
-void readScreen() {
-  String message = myNextion.listen();
-  if (message == "65 0 1 1 ffff ffff ffff") {
-    //Serial.println("Stoping...");
-    startTrack = 0;
-    myNextion.setComponentText("tTimeD", String(static_cast<float>(millis())/1000));
-  }
-  if (message == "65 0 2 1 ffff ffff ffff") {
-    //Serial.println("Starting run!");
-    startTrack = 1;
-  }
-  if (message == "65 0 3 1 ffff ffff ffff") {
-    //Serial.println("Loading rings");
-    loadRing();
-  }
-  /*
-  if (message == "65 0 4 1 ffff ffff ffff") {
-    //myNextion.buttonToggle(button4State, "b1", 0, 2);
-  }
-  */
-  if (message == "65 1 2 1 ffff ffff ffff") {
-    myNextion.setComponentText("tTimeD", String(static_cast<float>(millis())/1000));
-  }
-  /*
-  if (message == "65 1 1 1 ffff ffff ffff") {
-    //myNextion.buttonToggle(button6State, "b1", 0, 2);
-  }
-  */
-  /*
-  myNextion.setComponentText("timeD", String(static_cast<float>(millis())/1000));
-  myNextion.setComponentText("ringD", String(value++));
-  myNextion.setComponentText("turnNextD", "Left");
-  myNextion.setComponentText("turnLastD", "Blank");
-  */
-}
-//End Touch screen functions================================================================================== 
 //Servo Functions=============================================================================================================
 void setUp() {
   myServo.write(95);
   delay(10);
   myServo2.write(95);
   delay(10);
+}
+void rotateLeft() {
+  myServo.write(rotate360Speed);
+  delay(rotate360Time);
+  setUp();
+}
+void rotateRight() {
+  myServo2.write(rotate360Speed);
+  delay(rotate360Time);
+  setUp();
 }
 void rotate360() {
   myServo.write(rotate360Speed);
@@ -128,12 +92,26 @@ void rotate360() {
   setUp();
 }
 void loadRing(){
-  myServo.write(144);
-  myServo2.write(144);
+  myServo.write(150);
+  myServo2.write(150);
   delay(rotate360Time);
   setUp();
 }
 
+void ringDrop() {
+  if (ringArray[ringState] == 0) {
+    rotate360();
+  }
+  else if (ringArray[ringState] == 1) {
+    rotateRight();
+  }
+  else if (ringArray[ringState] == 2){
+    rotateLeft();
+  }
+  else {
+  } 
+  ringState++;
+}
 //Sensor Functions============================================================================================================
 int isOnLine(uint8_t sensorIn) {
   if(analogRead(sensorIn) > 500) {
@@ -162,39 +140,30 @@ void drive(int state) {
       forward();
       //stopMotors();
       //Serial.println("Straight");
+      if (pathState == 12) {
+        delay(700);
+        stopMotors();
+        ringDrop();
+      }
   }
   if (state == 0) {    //00000
       //forward();
-      stopMotors(); 
+      //stopMotors(); 
       //backward();
       //Serial.println("Start Area");
   }
   if (state == 7) {   //00111
-      stopMotors();
+      //stopMotors();
       gotTurn();
       //Serial.println("Left turn");
   }
-  /*
-  if (state == 3) {   //00011
-      stopMotors();
-      gotTurn();
-      //Serial.println("Left turn");
-  }
-  */
   if (state == 28) {   //11100
-      stopMotors();
+      //stopMotors();
       gotTurn();
       //rightTurn();
       //Serial.println("Right turn");
       //lastTurn == state;
   }
-  /*
-  if (state == 24) {   //11000
-      stopMotors();
-      gotTurn();
-      //Serial.println("Right turn");
-  }
-  */
   if (state == 31) {   //11111 second time we encounter this it has to be a right turn
       //forward();
       gotTurn();
@@ -226,40 +195,58 @@ void drive(int state) {
 }
 //MOTOR FUNCTIONS=============================================================================================
 void gotTurn() {
-  //still ahve to add failsafes, if there is a bad readibng it doesn't throw the whole track off?
+  //still have to add failsafes, if there is a bad readibng it doesn't throw the whole track off?
   if (pathArray[pathState] == 0) {
     //go forward
     forward();
-    //delay(50);
-    //if (pathArray[pathState-1]!= 0) //not sure if this works. It is almost always true
-    //Serial.println("Foward Path  called");
+    delay(65);
+    //Serial.println("Foward");
   }
   else if (pathArray[pathState] == 1) {
     stopMotors();
     //rotate360();
+    ringDrop();
     leftTurn();
     //Serial.println("Left Path called");
   }
-  else {
+  else if (pathArray[pathState] == 2){
+    if (pathState != 5)
     rightTurn();
+    if (pathState == 5) {
+     forward();
+     delay(200);
+     stopMotors();
+     ringDrop();
+     backward();
+     delay(700);
+    }
     //Serial.println("Right Path called");
   }
+  else {
+    stopMotors();
+    delay(1000000);
+  }
   pathState++;
+  if (pathState == 17) {
+   forward();
+   delay(600);
+   stopMotors();
+   delay(1000000);
+  }
 }
 void forward() {  //Moves the robot forward
   md.setM1Speed(400); //right side                 300 or  200
-  md.setM2Speed(-(motorRatio(400)));//left side //more powerful -247 or -165
-  //delay(10);
+  md.setM2Speed(-400);//left side //more powerful -247 or -165
 }
 void backward() { //Moves the robot backwards
-  md.setM1Speed(-300); //right side 300
-  md.setM2Speed(247);//left side    247
+  md.setM1Speed(-400); //right side 300
+  md.setM2Speed(400);//left side    247
 }
 void leftTurn() { //Turns the robot left from the center|| both have to be positive
   md.setM1Speed(400); //Forward right side 400
   md.setM2Speed(20);//Reverse left side     10
   //md.setM2Brake(300);
-  delay(630);
+  delay(610);
 }
 void rightTurn() { //Turns the robot right from the center|| both have to be negative
   md.setM1Speed(-20); //Forward right side                  400
@@ -270,7 +257,7 @@ void rightTurn() { //Turns the robot right from the center|| both have to be neg
 void slightLeft() {
   //md.setM1Speed(55); //right side //55             75
   md.setM1Brake(300);
-  md.setM2Speed(-(motorRatio(400)));//left side  // 45             65
+  md.setM2Speed(-400);//left side  // 45             65
 }
 void slightRight() {
   md.setM1Speed(400); //right side //-40           -50
@@ -298,11 +285,3 @@ void inputValues() {
   Serial.print(isOnLine(Pin15));
   Serial.println();
 }
-/*
-void testSensors(){
-  while(1){
-    inputValues();
-    delay(300);
-  }
-}
-*/
