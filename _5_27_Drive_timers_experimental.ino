@@ -1,5 +1,5 @@
 //TIMERS LIBRARY LINK: https://github.com/JChristensen/Timer
-                       You need timer.cpp/h which also needs event.cpp/h
+//                       You need timer.cpp/h which also needs event.cpp/h
 #include <Servo.h>
 #include <EEPROM.h>
 #include "Timer.h"
