@@ -43,11 +43,10 @@ int Pin34 = 34;
 float ratio = 0.166;
 boolean stopRefresh = true;
 int lastTurn = 0;
-int pathState = 0;
-int pathArray[19] = {1, 0, 1, 1, 2, 2, 2, 1, 1, 1, 2, 1, 1, 1, 0, 1, 1, 0, 3}; //1 = left, 0 straight, 2 right
+int pathState = 0;  //quadrant 1| quadrant 2    | center 
+int pathArray[21] = {1, 0, 1, 1, 2, 2, 2, 1, 1, 1, 2, 1, 1, 1, 0, 1, 1, 0, 0, 0}; //1 = left, 0 straight, 2 right
 int ringState = 0;
-int ringArray[] = {0, 0, 1, 2, 1, 0, 3, 3, 2, 3, 3, 3, 0};
-//int ringArray[] = {0, 0, 1, 1, 0, 3, 3, 3, 3, 3, 0};
+int ringArray[] = {0, 0, 1, 2, 1, 0, 3, 3, 2, 3, 3, 3, 0, 3}; //0 both arms, 1 right, 2 left, 3 none
 //See Path.png for navigation path
 void setup() {
   Serial.begin(9600);
@@ -64,6 +63,7 @@ void loop() {
   //Serial.print(time );
   //Serial.print("    ");
   //testSensors();
+  //currentTime = millis();
   drive(sensorState());
   //inputValues();           //Debug values for sensors
   //rotate360();
@@ -140,11 +140,6 @@ void drive(int state) {
       forward();
       //stopMotors();
       //Serial.println("Straight");
-      if (pathState == 12) {
-        delay(700);
-        stopMotors();
-        ringDrop();
-      }
   }
   if (state == 0) {    //00000
       //forward();
@@ -169,7 +164,6 @@ void drive(int state) {
       gotTurn();
       //stopMotors();
   }
-
   //Correction routines------------------------------------
 
   if (state == 12) {    //01100
@@ -193,9 +187,34 @@ void drive(int state) {
     //Serial.println("Correct left");
   }
 }
+void corrections(int state) {
+  if (state == 4) {    //00100
+      forward();
+  }
+  if (state == 12) {    //01100
+    slightRight();
+    //forward();
+    //Serial.println("Correct right");
+  }
+  if (state == 8) {    //01000
+    slightRight();
+    //Serial.println("Correct right");
+  }
+
+  if (state == 6) {    //00110
+    slightLeft();
+    //forward();
+    //Serial.println("Correct left");
+  }
+
+  if (state == 2) {    //00010
+    slightLeft();
+    //Serial.println("Correct left");
+  }
+}
 //MOTOR FUNCTIONS=============================================================================================
 void gotTurn() {
-  //still have to add failsafes, if there is a bad readibng it doesn't throw the whole track off?
+  //still have to add failsafes, if there is a bad reading it doesn't throw the whole track off?
   if (pathArray[pathState] == 0) {
     //go forward
     forward();
@@ -204,9 +223,27 @@ void gotTurn() {
   }
   else if (pathArray[pathState] == 1) {
     stopMotors();
-    //rotate360();
-    ringDrop();
-    leftTurn();
+    if (pathState != 10 || 16 || 19){
+       ringDrop();
+       leftTurn();
+    }
+    if (pathState == 11) {
+       leftTurn();
+       startTime = millis();
+       currentTime = millis();
+       while ((currentTime - startTime) < 2150) {
+         currentTime = millis();
+         corrections(sensorState());
+       }
+     stopMotors();
+     ringDrop();
+    }
+    if (pathState == 16) {
+     backward();
+     delay(100);
+     stopMotors();
+     ringDrop();
+    }
     //Serial.println("Left Path called");
   }
   else if (pathArray[pathState] == 2){
@@ -227,15 +264,15 @@ void gotTurn() {
     delay(1000000);
   }
   pathState++;
-  if (pathState == 17) {
+  if (pathState == 18) {
    forward();
-   delay(600);
+   delay(450);
    stopMotors();
    delay(1000000);
   }
 }
 void forward() {  //Moves the robot forward
-  md.setM1Speed(400); //right side                 300 or  200
+  md.setM1Speed(390); //right side                 300 or  200
   md.setM2Speed(-400);//left side //more powerful -247 or -165
 }
 void backward() { //Moves the robot backwards
@@ -261,6 +298,16 @@ void slightLeft() {
 }
 void slightRight() {
   md.setM1Speed(400); //right side //-40           -50
+  //md.setM2Speed(-55);//left side  // -55           -75
+  md.setM2Brake(300);
+}
+void reverseSlightLeft() {
+  //md.setM1Speed(55); //right side //55             75
+  md.setM1Brake(300);
+  md.setM2Speed(400);//left side  // 45             65
+}
+void reverseSlightRight() {
+  md.setM1Speed(-400); //right side //-40           -50
   //md.setM2Speed(-55);//left side  // -55           -75
   md.setM2Brake(300);
 }
