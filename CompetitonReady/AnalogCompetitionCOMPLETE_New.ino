@@ -34,9 +34,8 @@ Nextion myNextion(nextion, 9600);
 uint64_t currentTime = 0;
 uint64_t startTime = 0;
 unsigned long runTime = 0;
-int startTrack = 0;
 int rotate360Speed = 40; // 1.29s per rotation; 12.91s for 10 rotations
-int rotate360Time = 1376; // off by a fraction of a degree.
+int rotate360Time = 1260; // off by a fraction of a degree.
 int rotateStopSpeed = 92;
 int Pin32 = 32;
 int Pin34 = 34;
@@ -44,9 +43,10 @@ float ratio = 0.166;
 boolean stopRefresh = true;
 int lastTurn = 0;
 int pathState = 0;  //quadrant 1| quadrant 2    | center 
-int pathArray[21] = {1, 0, 1, 1, 2, 2, 2, 1, 1, 1, 2, 1, 1, 1, 0, 1, 1, 0, 0, 0}; //1 = left, 0 straight, 2 right
+int pathArray[20] = {1, 0, 1, 1, 2, 2, 2, 1, 1, 1, 2, 1, 1, 1, 0, 1, 1, 0, 0, 0}; //1 = left, 0 straight, 2 right
 int ringState = 0;
 int ringArray[] = {0, 0, 1, 2, 1, 0, 3, 2, 3, 3, 3, 0, 3, 3}; //0 both arms, 1 right, 2 left, 3 none
+boolean startTrack = true;
 //See Path.png for navigation path
 void setup() {
   Serial.begin(9600);
@@ -63,10 +63,17 @@ void loop() {
   //Serial.print(time );
   //Serial.print("    ");
   //testSensors();
+  //testServos(6);
   //currentTime = millis();
   drive(sensorState());
   //inputValues();           //Debug values for sensors
   //rotate360();
+}
+void testServos(int num){
+  for(int i=0;i<num;i++){
+    rotate360();
+  }
+  delay(100000);
 }
 //Servo Functions=============================================================================================================
 void setUp() {
@@ -142,9 +149,10 @@ void drive(int state) {
       //Serial.println("Straight");
   }
   if (state == 0) {    //00000
-      //forward();
-      //stopMotors(); 
-      //backward();
+  
+  if (startTrack) {
+      forward();
+  }
       //Serial.println("Start Area");
   }
   if (state == 7) {   //00111
@@ -215,6 +223,12 @@ void corrections(int state) {
 //MOTOR FUNCTIONS=============================================================================================
 void gotTurn() {
   //still have to add failsafes, if there is a bad reading it doesn't throw the whole track off?
+  if(startTrack){
+    startTrack=false;
+    forward();
+    delay(65);
+    return;
+  }
   if (pathArray[pathState] == 0) {
     //go forward
     forward();
@@ -228,22 +242,14 @@ void gotTurn() {
        leftTurn();
        stopMotors();
        startTime = millis();
-       
-       while ((millis() - startTime) <= 2080) {
+       while ((millis() - startTime) <= 2200) {
          //forward();
          drive(sensorState());
        }
        stopMotors();
        ringDrop();
     }
-    else if (pathState == 16) {
-     backward();
-     delay(100);
-     stopMotors();
-     ringDrop();
-     leftTurn();
-    }
-    else{ //if ((pathState != 11) && (pathState != 16) &&  (pathState != 19)){
+    else { 
        ringDrop();
        leftTurn();
     }
@@ -284,15 +290,15 @@ void backward() { //Moves the robot backwards
 }
 void leftTurn() { //Turns the robot left from the center|| both have to be positive
   md.setM1Speed(400); //Forward right side 400
-  md.setM2Speed(20);//Reverse left side     10
+  md.setM2Speed(20);//Reverse left side     20
   //md.setM2Brake(300);
-  delay(610);
+  delay(610);// original   610
 }
 void rightTurn() { //Turns the robot right from the center|| both have to be negative
   md.setM1Speed(-20); //Forward right side                  400
   //md.setM1Brake(300);
   md.setM2Speed(-(motorRatio(400)));//Reverse left side     10
-  delay(630);
+  delay(610);
 }
 void slightLeft() {
   //md.setM1Speed(55); //right side //55             75
