@@ -1,7 +1,7 @@
 /*
   Coded by
   Ricardo Carretero
-  & servo functions by Tim Enbom
+  & Tim Enbom
 */
 //from front of sensor
 //220 ohm resistor is signal, ground, 5v
