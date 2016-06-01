@@ -223,7 +223,7 @@ void gotTurn() {
   }
   else if (pathArray[pathState] == 1) {
     stopMotors();
-    if (pathState != 10 || 16 || 19){
+    if ((pathState != 11) && (pathState != 16) && (pathState != 19)){
        ringDrop();
        leftTurn();
     }
