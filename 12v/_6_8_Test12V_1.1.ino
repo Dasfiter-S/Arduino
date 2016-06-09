@@ -77,7 +77,7 @@ void setup() {
       timeArray[i]=EEPROMReadInt(i*intSize);      //each spot takes up intSize bytes
       Serial.print(timeArray[i]);
       Serial.print(" : ");
-      timeArray[i]=(timeArray[i]*2.5)/4-400;    //timed going 250 speed, will be going at 400 speed, slow down 400ms before the turn
+      timeArray[i]=(timeArray[i]/4)*2.5-400;    //timed going 250 speed, will be going at 400 speed, slow down 400ms before the turn
       Serial.println(timeArray[i]);
     }
   }
