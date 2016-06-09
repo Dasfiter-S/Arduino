@@ -1,33 +1,7 @@
 /*
- * BUGS
- * 
- * Stopped in betweens the 2nd and 3rd sensors and goes rotates counter clockwise.
- *  Could be the stop command isn't entirely stopped.
- *turned too late, it caught the turn but hit the wall
- * 
- * Possible make a lastCorrect, don't resend goForward if already forward
- * 
- * 5/13
- * ---Changed delay to before correction check, moved stop to right as 0 or 4 is spotted
- * ---Changed, doesn't check for 2 in turn code anymore
- * ---maybe if it gets a [0] or [4] reading go back a lil in that direction.  Or I can implement the slower around turn time code.  Measure it going full speed from one to another, make an array that starts the code right before.
- * ----now will not correct if multiple sensor readings [3] and [1] at the same time or [0] and [4] since that is impossible short of a turn.  
- * can get off track during 'go forward past turn' (1)                (code error)
- * better code for only sensor [0] or [4] reading (3)                 (code error)
- * does a turn right after coming off a turn (3)                      (code error)
- * missed a turn!!! went straight over it (4)                         (update time/sensor error)
- * got completely off line after doing a right correction. (1)        (update time/sensor error)
- * went into a turn at angled so 0 or 4 sens missed (2)               (update time/sensor error)
- *   only rightmost sensor is reading and it is trying to go left     (sensor error)
-   random readings of left correct or turn                            (sensor error)
-   5/20
-   turns missed 2/40, 1/30
-   gap between sensors        need to add 'last direction' for what it does in gaps
-   5/23 can set up the framework for getting path times.  EEPROM.read(address), EEPROM.write(address, int) 
-   millis() --- add timer to his delay after pathState 5 stuff and put mdCorrect in a while loop until the appropriate time is reached
    6/8
-   have it slow down and use old corrections when near a turn (250~ power, 350~ brake)
-   have to add time track
+   Make sure the EEPROM is storing and reading full integers.
+   Test harder breaking in corrections
  */
 
 
@@ -53,7 +27,7 @@ struct ServoInfo{
 //========================================SETTINGS======================================================
 bool timeTrack = true;
 int mdFast = 400; //not near a turn
-int mdSlow = 250; //near a turn
+int mdSlow = 250; //near a turn or timing
 //========================================GLOBAL DEFINES======================================================
 int pathState = 0;  //quadrant 1| quadrant 2    | center 
 int pathArray[15] = {left, straight, left, left, right, right, right, left, left, left, straight, straight, left, left, straight}; //1 = left, 0 straight, 2 right
@@ -98,6 +72,7 @@ void setup() {
   if(!timeTrack){
     for(int i=0;i<pathLength;i++){
       timeArray[i]=EEPROM.read(i*intSize)-400;
+      Serial.println(timeArray[i]);
     }
   }
 }
@@ -110,10 +85,12 @@ void initialize(){
 }
 
 void noTurnChecks(){
+  //go fast and don't check for turns
   mdPower = mdFast;
   turnCheck = false;
 }
 void yesTurnChecks(){
+  //go slow and check for turns
   mdPower = mdSlow;
   turnCheck = true;
 }
@@ -177,13 +154,11 @@ void mdCorrectForward(){
       csec = millis();
       //left correction sensor is reading
       if(sensor[1] and !sensor[3]){
-        Serial.println("Correct Left");
         correction=1;
         mdBrakeLeft(.4);
       }
       //right correction sensor is reading
-      else if(sensor[3] and !sensor[1]){
-        Serial.println("Correct Right");   
+      else if(sensor[3] and !sensor[1]){ 
         correction=-1; 
         mdBrakeRight(.4);
       }
@@ -192,13 +167,11 @@ void mdCorrectForward(){
         readSensor(0);
         csec = millis();
         if(sensor[0] and !sensor[4]){
-          Serial.println("Correct Left");
           correction=2;
           mdBrakeLeft(.2);
         }
         //right correction sensor is reading
-        else if(sensor[4] and !sensor[0]){
-          Serial.println("Correct Right");   
+        else if(sensor[4] and !sensor[0]){ 
           correction=-2; 
           mdBrakeRight(.2);
         }
@@ -432,8 +405,8 @@ void pivotRight(){
 }
 
 void mdRight() {
-  md.setM1Speed(mdRFlip*mdPower*(-.6));
-  md.setM2Speed(mdLFlip*(mdPower*mdLOffset)*.5);
+  md.setM1Speed(mdRFlip*mdPower*(-.26));
+  md.setM2Speed(mdLFlip*(mdPower*mdLOffset));
   //md.setM1Speed(mdRFlip*mdPower*(-.26));
   //md.setM2Speed(mdLFlip*(mdPower*mdLOffset));
 }
