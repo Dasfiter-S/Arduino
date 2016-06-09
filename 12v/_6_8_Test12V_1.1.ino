@@ -1,7 +1,7 @@
 /*
  * Added methods: yesTurnChecks, noTurnChecks, beforeTurn
- * Added variable: timeArray[] that holds all the timed lengths of each leg.
- * Added variable: loopTimer that updates, counting down untill the robot is near a turn
+ * Added timeArray[] that holds all the timed lengths of each leg.
+ * Added loopTimer that updates, counting down untill the robot is near a turn
    6/8
    Make sure the EEPROM is storing and reading full integers.
    Test harder breaking in corrections
@@ -74,7 +74,7 @@ void setup() {
   yesTurnChecks();
   if(!timeTrack){
     for(int i=0;i<pathLength;i++){
-      timeArray[i]=EEPROM.read(i*intSize);      //each spot takes up intSize bytes
+      timeArray[i]=EEPROMReadInt(i*intSize);      //each spot takes up intSize bytes
       Serial.print(timeArray[i]);
       Serial.print(" : ");
       timeArray[i]=(timeArray[i]*2.5)/4-400;    //timed going 250 speed, will be going at 400 speed, slow down 400ms before the turn
@@ -89,6 +89,25 @@ void initialize(){
   myServo2.attach(34);
   setUp();
 }
+
+void EEPROMWriteInt(int p_address, int p_value)
+     {
+     byte lowByte = ((p_value >> 0) & 0xFF);
+     byte highByte = ((p_value >> 8) & 0xFF);
+
+     EEPROM.write(p_address, lowByte);
+     EEPROM.write(p_address + 1, highByte);
+     }
+
+//This function will read a 2 byte integer from the eeprom at the specified address and address + 1
+unsigned int EEPROMReadInt(int p_address)
+     {
+     byte lowByte = EEPROM.read(p_address);
+     byte highByte = EEPROM.read(p_address + 1);
+
+     return ((lowByte << 0) & 0xFF) + ((highByte << 8) & 0xFF00);
+     }
+
 
 //MAIN LOOP===================================================================================================
 //timer, every XXms it is running mdCorrectmdForward(1) and after XXms runs startTurnChecks (when it is close to a turn)
@@ -213,7 +232,7 @@ void yesTurnChecks(){
 void beforeTurn(){
   //called right after finding a turn, before doing anything about it
   if(timeTrack){
-    if(!startTrack) EEPROM.write(pathState*intSize, (unsigned int)(millis()-msec)); //store time for last leg
+    if(!startTrack) EEPROMWriteInt(pathState*intSize, (unsigned int)(millis()-msec)); //store time for last leg
     msec = millis(); //start timing next leg
   }
   else{
@@ -291,10 +310,8 @@ void turnLeft(){
   mdForward(0);
   if(pathState !=9 && pathState !=12) straightLeft();
   ringDrop();
-  if(pathState==7) mdPower=mdFast;
   mdLeft();
   delay(300);
-  if(pathState ==3) mdPower=mdSlow;
   pathState++;
 }
 
