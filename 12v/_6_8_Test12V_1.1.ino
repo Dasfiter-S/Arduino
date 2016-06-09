@@ -1,4 +1,6 @@
 /*
+ * Added yesTurnChecks, noTurnChecks, beforeTurn (halfway down)
+ * Added timeArray[] that holds all the timed lengths of each leg.
    6/8
    Make sure the EEPROM is storing and reading full integers.
    Test harder breaking in corrections
@@ -71,7 +73,7 @@ void setup() {
   yesTurnChecks();
   if(!timeTrack){
     for(int i=0;i<pathLength;i++){
-      timeArray[i]=EEPROM.read(i*intSize)-400;
+      timeArray[i]=EEPROM.read(i*intSize)*2.5/4-400; //timed going 250 speed, will be going at 400 speed, slow down 400ms before the turn
       Serial.println(timeArray[i]);
     }
   }
@@ -82,17 +84,6 @@ void initialize(){
   myServo.attach(32);
   myServo2.attach(34);
   setUp();
-}
-
-void noTurnChecks(){
-  //go fast and don't check for turns
-  mdPower = mdFast;
-  turnCheck = false;
-}
-void yesTurnChecks(){
-  //go slow and check for turns
-  mdPower = mdSlow;
-  turnCheck = true;
 }
 
 //MAIN LOOP===================================================================================================
@@ -202,7 +193,21 @@ void mdCorrectForward(){
   }
 }
 
+void noTurnChecks(){
+  //go fast and don't check for turns
+  //called when there is no turn near
+  mdPower = mdFast;
+  turnCheck = false;
+}
+void yesTurnChecks(){
+  //go slow and check for turns
+  //called when getting close to a turn or timing the track
+  mdPower = mdSlow;
+  turnCheck = true;
+}
+
 void beforeTurn(){
+  //called right after finding a turn, before doing anything about it
   if(timeTrack){
     if(!startTrack) EEPROM.write(pathState*intSize, (unsigned int)(millis()-msec)); //store time for last leg
     msec = millis(); //start timing next leg
