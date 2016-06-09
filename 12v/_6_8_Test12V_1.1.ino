@@ -1,6 +1,7 @@
 /*
- * Added yesTurnChecks, noTurnChecks, beforeTurn (halfway down)
- * Added timeArray[] that holds all the timed lengths of each leg.
+ * Added methods: yesTurnChecks, noTurnChecks, beforeTurn
+ * Added variable: timeArray[] that holds all the timed lengths of each leg.
+ * Added variable: loopTimer that updates, counting down untill the robot is near a turn
    6/8
    Make sure the EEPROM is storing and reading full integers.
    Test harder breaking in corrections
