@@ -4,7 +4,8 @@
  * Added loopTimer that updates, counting down untill the robot is near a turn
    6/8
    Make sure the EEPROM is storing and reading full integers.
-   Test harder breaking in corrections
+   Test harder breaking in corrections (fear slowness)
+   make test path that avoids uneven part of track.
  */
 
 
