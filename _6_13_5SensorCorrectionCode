@@ -1,0 +1,71 @@
+void mdCorrectForward(){
+  //5 sensors: A learning counter correction
+  //lastCorrection... 1:left,   2: counter correct right
+  //                 -1:right, -2: counter correct left 
+  readSensor(1);
+  readSensor(2);
+  readSensor(3);
+  if(sensor[2]){
+    if(counterCorrect){ //just corrected, so need to counter correct
+      if(lastCorrection ==1 or lastCorrection ==-1){ //start counter correction
+        mdSpeed(1, 1); //full power to both motors
+        if(lastCorrection==1){
+          lastCorrection= 2;
+          mdBrake(0,1); //brake right motor hard
+        }
+        else{
+          lastCorrection= -2;
+          mdBrake(1,0); //brake left motor hard
+        }
+        correctMS = millis()-correctMS; //how long the last correction was
+        correctionTimer.after((correctMS*100)/var, finishCounterCorrect);
+      }
+      else correctionTimer.update(); //update counter correction
+    }
+    else mdSpeed(1, 1);
+  }
+  else if(sensor[1] and lastCorrection != 1){ //left sensor pinging
+    t=millis()-correctMS;
+    mdSpeed(1, 1);
+    mdBrake(.8,0); //turn sharply left
+    
+    //how long did you go straight?
+    if(lastCorrection==2){ //last correction was left.... counter corrected too long
+      if(t<50)var-=40;
+      else if(t<150) var-=10;
+      else if(t<300) var-=5;
+      else var-=1;
+    }
+    else{ //last correction was right.... counter corrected not long enough
+      if(t<50)var+=40;
+      else if(t<150) var+=10;
+      else if(t<300) var+=5;
+      else var+=1;
+    }
+    correctMS = millis(); //start timing how long you turn
+    counterCorrect = true;
+    lastCorrection=1; //start counter correction
+  }
+  else if(sensor[3] and lastCorrection != -1){
+    t=millis()-correctMS; //t = how long the robot went straight
+    mdSpeed(1, 1);
+    mdBrake(0,.8); //turn sharply right
+    
+    //how long did you go straight?
+    if(lastCorrection==2){ //last correction was left.... counter corrected too long
+      if(t<50)var+=40;
+      else if(t<150) var+=10;
+      else if(t<300) var+=5;
+      else var+=1;
+    }
+    else{ //last correction was right.... counter corrected not long enough
+      if(t<50)var-=40;
+      else if(t<150) var-=10;
+      else if(t<300) var-=5;
+      else var-=1;
+    }
+    correctMS = millis(); //start timing how long you turn
+    counterCorrect = true;
+    lastCorrection=-1; //start counter correction
+  }
+}
