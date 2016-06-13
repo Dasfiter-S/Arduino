@@ -1,0 +1,20 @@
+void mdCorrectForward(){
+  //4 sensors
+  //only when you are decently angled will sensors 1 and 2 be lit.
+  if(sensor[1] and sensor[2]){
+    //if both center sensors are pinging, then you need to sharply correct
+    mdSpeed(1, 1);
+    if(leftS) mdBrake(0,.6);  //just came from left sensor
+    else if(rightS) mdBrake(.6,0); //just came from right sensor
+  }
+  else if(sensor[1]){ //too much left
+    leftS = true;
+    rightS = false;
+    mdSpeed(.92, 1); //slowly go back to right sensor
+  }
+  else if(sensor[2]){
+    rightS = true;
+    leftS = false;
+    mdSpeed(1,.92); //slowly go back to left sensor
+  }
+}
