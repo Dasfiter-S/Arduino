@@ -39,7 +39,6 @@ void leftCorrect(){
     lTime=0;
     rTime=0;
   }
-  lTime = 0;
   sTime = millis();
   mdSpeed(1,1);
   mdBrake(brakeVal,0);
