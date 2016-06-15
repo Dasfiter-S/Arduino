@@ -35,11 +35,13 @@ void leftCorrect(){
   rightS = false;
   if(sTime!=0){ //if you were just going right, record the time
     rTime = millis()-sTime;
-    if(lTime!=0) calcBrake(); //if you also have the time going left... calculate
-    lTime=0; //reset
-    rTime=0;
+    if(lTime!=0){
+      calcBrake(); //if you also have the time going left... calculate
+      lTime=0; //reset
+      rTime=0;
+    }
   }
-  sTime = millis(); //start timing left
+  sTime = millis(); //start timing how long you turn
   mdSpeed(1,1);
   mdBrake(brakeVal,0);
 }
@@ -48,9 +50,11 @@ void rightCorrect(){
   leftS = false;
   if(sTime!=0){
     lTime = millis()-sTime;
-    if(rTime!=0) calcBrake();
-    lTime=0;
-    rTime=0;
+    if(rTime!=0){
+      calcBrake();
+      lTime=0;
+      rTime=0;
+    }
   }
   sTime = millis();
   mdSpeed(1,1);
