@@ -33,13 +33,13 @@ void mdCorrectForward(){
 void leftCorrect(){
   leftS = true;
   rightS = false;
-  if(sTime!=0){
+  if(sTime!=0){ //if you were just going right, record the time
     rTime = millis()-sTime;
-    if(lTime!=0) calcBrake();
-    lTime=0;
+    if(lTime!=0) calcBrake(); //if you also have the time going left... calculate
+    lTime=0; //reset
     rTime=0;
   }
-  sTime = millis();
+  sTime = millis(); //start timing left
   mdSpeed(1,1);
   mdBrake(brakeVal,0);
 }
