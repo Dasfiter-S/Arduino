@@ -1,0 +1,70 @@
+bool rightS, leftS, centerS = false;
+unsigned long lTime, rTime, sTime = 0;
+float brakeVal = 1;
+
+//on turn: sTime, rTime and lTime are set to 0
+//         rightS, leftS and centerS are set to false 
+//         brakeVal is set to 1
+
+void mdCorrectForward(){
+  if(sensor[1] and sensor[2]){
+    //if both sensors, then act like you switched... so if you were correcting right, now correct left
+    if(centerS) return; //only run this code once per correction
+    
+    centerS = true;
+    if(rightS) leftCorrect(); //was correcting right, now correct left
+    else if(leftS) rightCorrect(); //was correcting left, now correct right
+    else mdSpeed(1,1); //dunno if this will ever happen
+  }
+  else if(sensor[1]){ //too far left
+    if(leftS) return; //only run this code once per correction
+
+    centerS = false;
+    leftCorrect(); //start timing and correcting left
+  }
+  else if(sensor[2]){ //too far right
+    if(rightS) return; //only run this code once per correction
+
+    centerS = false;
+    rightCorrect(); //start timing and correcting right
+  }
+}
+
+void leftCorrect(){
+  leftS = true;
+  rightS = false;
+  if(sTime!=0){
+    rTime = millis()-sTime;
+    if(lTime!=0) calcBrake();
+    lTime=0;
+    rTime=0;
+  }
+  lTime = 0;
+  sTime = millis();
+  mdSpeed(1,1);
+  mdBrake(brakeVal,0);
+}
+void rightCorrect(){
+  rightS = true;
+  leftS = false;
+  if(sTime!=0){
+    lTime = millis()-sTime;
+    if(rTime!=0) calcBrake();
+    lTime=0;
+    rTime=0;
+  }
+  sTime = millis();
+  mdSpeed(1,1);
+  mdBrake(0, brakeVal);
+}
+
+void calcBrake(){
+  //right now this is just outputing the times, tomorrow I will see what they are when so how I should handle them
+  Serial.print("left:");
+  Serial.print(lTime);
+  Serial.print("right:");
+  Serial.println(rTime);
+  //short times + similiar times.... start decreasing brake
+  //if long times, increase brake
+  brakeVal = 1;
+}
