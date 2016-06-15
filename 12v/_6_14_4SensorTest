@@ -8,8 +8,8 @@ float brakeVal = 1;
 
 void mdCorrectForward(){
   if(sensor[1] and sensor[2]){
-    //if both sensors, then act like you switched... so if you were correcting right, now correct left
-    if(centerS) return; //only run this code once per correction
+    //both sensors are reading, so if you were correcting right, now correct left
+    if(centerS) return; //only run correction code once per correction
     
     centerS = true;
     if(rightS) leftCorrect(); //was correcting right, now correct left
@@ -35,11 +35,7 @@ void leftCorrect(){
   rightS = false;
   if(sTime!=0){ //if you were just going right, record the time
     rTime = millis()-sTime;
-    if(lTime!=0){
-      calcBrake(); //if you also have the time going left... calculate
-      lTime=0; //reset
-      rTime=0;
-    }
+    if(lTime!=0) calcBrake(); //if you also have the time going left... calculate
   }
   sTime = millis(); //start timing how long you turn
   mdSpeed(1,1);
@@ -50,11 +46,7 @@ void rightCorrect(){
   leftS = false;
   if(sTime!=0){
     lTime = millis()-sTime;
-    if(rTime!=0){
-      calcBrake();
-      lTime=0;
-      rTime=0;
-    }
+    if(rTime!=0) calcBrake();
   }
   sTime = millis();
   mdSpeed(1,1);
@@ -70,4 +62,7 @@ void calcBrake(){
   //short times + similiar times.... start decreasing brake
   //if long times, increase brake
   brakeVal = 1;
+  
+  lTime=0; //reset
+  rTime=0;
 }
