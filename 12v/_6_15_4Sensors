@@ -1,0 +1,81 @@
+bool rightS, leftS, justTurned = false;
+unsigned long sTime = 0;
+int facing = 0;
+
+void correct(int facing){
+  if(facing>0){
+    mdSpeed(1,0);
+    mdBrake(0,1);
+  }
+  else{
+    mdSpeed(0,1);
+    mdBrake(1,0);
+  }
+  delay(40+facing*10);
+  if(facing>0){
+    mdSpeed(0,1);
+    mdBrake(1,0);
+  }
+  else{
+    mdSpeed(1,0);
+    mdBrake(0,1);
+  }
+  delay(80);
+}
+
+void mdCorrectForward(){
+  if(justTurned){
+    if(sTime != 0){
+      if(sensor[1]){
+        leftS = true;
+        rightS = false;
+      }
+      else if(sensor[2]){
+        rightS = true;
+        leftS = false;
+      }
+      else{
+        sTime = millis() - sTime;
+        if(sTime > 400) facing = 1;
+        else if(sTime > 250) facing = 2;
+        else if(sTime > 100) facing = 3;
+        else facing = 5;
+        sTime = 0;
+        if(rightS) facing*=-1;
+        correct(facing); // curve left/right then right/left
+        justTurned = false;
+        mdSpeed(1,1);
+      }
+    }
+    else{
+      if(sensor[1]) leftS = true;
+      if(sensor[2])rightS = true;
+      if(leftS and rightS){
+        mdBrake(1,1);
+        delay(500);
+        sTime = millis();
+        mdSpeed(1,1);
+      }
+    }
+  }
+  else if(sensor[1]){
+    if(facing != -2){
+      facing = -2;
+      mdSpeed(1,1);
+    }
+  }
+  else if(sensor[2]){
+    if(facing != 2){
+      facing = 2;
+      mdSpeed(1,1);
+    }
+  }
+  else correct(facing);
+}
+
+void beforeTurn(){
+  justTurned = true;
+  rightS = leftS = false;
+  sTime = 0;
+  facing = 0;
+}
