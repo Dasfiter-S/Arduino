@@ -52,7 +52,7 @@ Timer loopTimer;
 int mdPower = mdFast; //full power for the motor
 int mdRFlip = 1;
 int mdLFlip = -1;
-float mdLOffset = 1;//.98;//.915; //.8233 on May 5th in Ricardo's code; 
+float mdLOffset = .99;//.98;//.915; //.8233 on May 5th in Ricardo's code; 
 float mdROffset = 1;
 //.78~ Offset for low power level
 
@@ -61,9 +61,13 @@ void setup() {
   Serial.begin(9600);
   initialize();
   startTurnChecks();
-  testTimes();
+  //testTimes();
+  /*mdSpeed(1,1);
+  while(1){
+    delay(100);
+  }*/
   if(timing) timeTrack();
-  else readTimes();
+  //else readTimes();
 }
 
 void initialize(){
@@ -143,8 +147,8 @@ void stopTurnChecks(){
 //timer, every XXms it is running mdCorrectmdSpeed(1, 1) and after XXms runs startTurnChecks (when it is close to a turn)
 void loop() {
   readSensors();
-  if(turnChecks) turnCheck();
-  else loopTimer.update(); //timer untill turnC flips to true
+  //if(turnChecks) turnCheck();
+  //else loopTimer.update(); //timer untill turnC flips to true
   mdCorrectForward();
 }
 
@@ -170,6 +174,10 @@ unsigned long sTime = 0;
 bool turning = false;
 
 void testTimes(){
+  //90->20
+  mdBrake(1,1);
+  delay(2000);
+  Serial.println("STARTING");
   while(1){
     readSensors();
     mdSpeed(1,1);
@@ -215,6 +223,7 @@ void mdCorrectForward(){
       leftS = true;
       rightS = false;
       centerS = false;
+      mdSpeed(1,1);
       mdBrake(1,0);
     }
   }
@@ -226,7 +235,9 @@ void mdCorrectForward(){
       leftS = false;
       rightS = true;
       centerS = false;
+      mdSpeed(1,1);
       mdBrake(0,1);
+      
     }
   }
   else if(sensor[2]){
@@ -239,28 +250,41 @@ void mdCorrectForward(){
       else if(rightS) mdBrake(1,0);
       
       sTime = millis()-sTime;
-      if(sTime>100) sTime = 100;
-      sTime+=50;
-      delay((20*150)/sTime);
+      if(sTime>90) sTime = 90;
+      sTime+=40;
+      delay((10*140)/sTime); //90->20ms
+      sTime = 0;
     }
     else{
       //if sTime is small then counter sharper
-      if(leftS) mdBrake(0,.7);
-      else if(rightS) mdBrake(.7,0);
+      if(leftS){
+        Serial.print("R");
+        mdBrake(0,1);
+      }
+      else if(rightS){
+        mdBrake(1,0);
+        Serial.print("L");
+      }
       
       sTime = millis()-sTime;
-      if(sTime>200) sTime = 200;
-      delay(10+ 10*sTime/200);
+      Serial.print("CorrectMild: ");
+      Serial.println(sTime);
+      if(sTime>120) sTime = 120;
+      if(sTime>50){
+        sTime-=35;
+        delay(75*sTime/80);
+      }
+      sTime = 0;
     }
     leftS = false;
     rightS = false;
     centerS = true;
   }
   else if(rightS){
-    Serial.println("OFF TRACK RIGHT");
+    //Serial.println("OFF TRACK RIGHT");
   }
   else if(leftS){
-    Serial.println("OFF TRACK LEFT");
+    //Serial.println("OFF TRACK LEFT");
   }
 }
 
