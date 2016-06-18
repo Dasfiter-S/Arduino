@@ -1,0 +1,606 @@
+//6/18 BUGS
+/* 
+fix drop 5, if it corrects right before it gets way off
+tweak correction algorithm
+
+any way to make start sequence more reliable
+drop 10 doesn't do ring drop (ring states are wrong)
+*/
+
+//6-17 TODO
+
+//time how much time you lose with a correction
+//testTimes to find out the time frame for counter corrections.  Find out if you should lower brake power on an offTrack
+//tweak counter-correction values
+//get timing track up and running.
+
+//  6/17 BUGS
+/*
+special #5 has trouble going backwards  I CAN MAKE IT VARY BASED ON FRONT SENSORS. 
+  -----#5 constantly dipping right
+-----straighten is having trouble with lower motor speed (the slow down in state 4)
+------forward delay is having trouble in state 2
+*/
+
+#include <Servo.h>
+#include <EEPROM.h>
+#include "DualVNH5019MotorShield.h"
+#include "Timer.h"
+DualVNH5019MotorShield md;
+//=========================================STRUCTS=============================================================
+struct ServoInfo{
+  int pinNum;
+  int turnSpeed;
+  int turnTime;
+  int stopSpeed;
+};
+#define none 0
+#define left 1
+#define right 2
+#define both 3
+//========================================SETTINGS======================================================
+bool timing = false;
+int mdFast = 400; //not near a turn
+int mdSlow = 250; //near a turn
+//========================================VARS======================================================
+Servo servoL, servoR;
+int servoSpeed = 40; // 1.29s per rotation; 12.91s for 10 rotations
+int servoTime = 1260; // off by a fraction of a degree.
+int servoStop = 92;
+int servoState = 0;
+int servoArray[] = {both, both, right, left, right, both, none, right, none, both}; //0 both arms, 1 right, 2 left, 3 none
+//int sensorPins[5] = {11,12,13,14,15};
+//bool sensor[5] = {false, false, false, false, false};
+//int numSensors=5;
+
+int sensorPins[5] = {11, 12,13,14,15};
+bool sensor[5] = {false, false, false, false};
+int numSensors=5;
+
+int turnState = 0;  //quadrant 1| quadrant 2    | center 
+int turnArray[12] = {left, none, left, left, right, right, right, left, left, none, left, none}; //1 = left, 0 straight, 2 right
+int numTurns = 14;
+bool startingZone, turnChecks;
+
+unsigned long correctMS, turnMS, t =0;
+unsigned long timeArray[14];
+Timer loopTimer;
+
+int mdPower = mdFast; //full power for the motor
+int mdRFlip = 1;
+int mdLFlip = -1;
+float mdLOffset = .93;//.98;//.915; //.8233 on May 5th in Ricardo's code; 
+float mdROffset = 1;
+//.78~ Offset for low power level
+
+//SETUP=======================================================================================================
+void setup() {
+  Serial.begin(9600);
+  initialize();
+  //startTurnChecks();
+  mdPower = mdFast;
+  //waitTillPlacedOnTrack();
+  //turnState = 9;
+  //printAnalog();
+  mdBrake(1,1);
+  delay(1000);
+  mdSpeed(1,-.1);
+  delay(15);
+  backwardsDrop();
+  turnState = 0;
+  //testSensors();
+  //readJitters();
+  //testJitterTime();
+  //testSensors();
+  //if(timing) timeTrack();
+  //else readTimes();
+}
+
+void backwardsDrop(){
+  mdSpeed(-.3,-.3);
+  unsigned long counter0 = 0;
+  unsigned long counter4 = 0;
+  
+  while(1){
+    readSensor(0);
+    readSensor(4);
+    if(sensor[0]){
+      if(counter4!=0) break;
+      counter0++;
+    }
+    if(sensor[4]){
+     if(counter0!=0) break;
+      counter4++;
+    }
+    delay(1);
+  }
+  //mdBrake(1,1);
+  if(counter0!=0){
+    counter4=counter0;
+    mdSpeed(.7,-.7);
+  }
+  else mdSpeed(-.7,.7);
+  EEPROMWritelong(0, counter4);
+  counter4*=counter4;
+  delay(counter4/40);
+  mdBrake(1,1);
+  delay(30);
+  mdSpeed(-1,-.35);
+  delay(250);
+  mdBrake(1,1);
+  delay(500);
+  mdSpeed(.645,1);
+  delay(800);
+  int counter = 0;
+  while(counter<4){
+    readSensor(4);
+    if(sensor[4]) counter++;
+    else counter = 0;
+  }
+  mdSpeed(1,1);
+  delay(50);
+
+}
+void initialize(){
+  md.init();
+  servoL.attach(32);
+  servoR.attach(34);
+  stopServos();
+}
+
+void waitTillPlacedOnTrack(){
+  int count = 0;
+  while(1){  
+    readSensor(4);
+    if(!sensor[4]){
+      readSensor(0);
+      readSensor(2);
+      if(sensor[2] and !sensor[0]){
+        if(count>4){
+          Serial.println("on track, starting code");
+          startingZone = false;
+          break;
+        }
+        else count++;
+      }
+    }
+    delay(100);
+  }
+}
+
+
+//MAIN LOOP===================================================================================================
+//timer, every XXms it is running mdCorrectmdSpeed(1, 1) and after XXms runs startTurnChecks (when it is close to a turn)
+void loop() {
+  readSensors();
+  turnCheck();
+  mdCorrectForward();
+}
+
+void turnCheck() {
+  if (!sensor[0] and sensor[3] and sensor[4]) {   //0--11
+      gotTurn();
+  }
+  else if (sensor[0] and sensor[1] and !sensor[4]) {   //11--0
+      gotTurn();
+  }
+  else if (sensor[0] and sensor[2] and sensor[4]) {   //1-1-1 second time we encounter this it has to be a right turn
+      gotTurn();
+  }
+}
+bool turnCheck2() {
+  if (!sensor[0] and sensor[3] and sensor[4]) {   //0--11
+      return true;
+  }
+  else if (sensor[0] and sensor[1] and !sensor[4]) {   //11--0
+      return true;
+  }
+  else if (sensor[0] and sensor[2] and sensor[4]) {   //1-1-1 second time we encounter this it has to be a right turn
+      return true;
+  }
+  return false;
+}
+bool leftS = false;
+bool rightS = false;
+bool centerS = false;
+bool offTrack = false;
+unsigned long sTime = 0;
+unsigned long endTime = 0;
+
+
+void mdCorrectForwardTiming(int time){
+  endTime = millis()+time;
+  while(endTime>millis()){
+    readSensors();
+    mdCorrectForward();
+  }
+}
+
+void mdCorrectForward(){
+  
+  if(sensor[1]){
+    if(!leftS){
+      sTime = millis();
+      if(!centerS) offTrack = true;
+      else offTrack = false;
+      leftS = true;
+      rightS = false;
+      centerS = false;
+      mdSpeed(1,1);
+      mdBrake(1,0);
+    }
+  }
+  else if(sensor[3]){
+    if(!rightS){
+      sTime = millis();
+      if(!centerS) offTrack = true;
+      else offTrack = false;
+      leftS = false;
+      rightS = true;
+      centerS = false;
+      mdSpeed(1,1);
+      mdBrake(0,1);
+      
+    }
+  }
+  else if(sensor[2]){
+    if(centerS) return;
+    mdSpeed(1,1);
+    centerS = true;
+    if(sTime==0){
+    }
+    else if(offTrack){
+      //if sTime is small then counter sharper
+      //find times
+      if(leftS) mdBrake(0,1);
+      else if(rightS) mdBrake(1,0);
+      sTime = millis()-sTime;
+      if(sTime>90) sTime = 90;
+      sTime=10*14/(sTime+40)+millis();
+      while(sTime>millis()){
+        readSensors();
+        turnCheck();
+        if(centerS) break;
+      }
+      //sTime+=40;
+      //delay((10*140)/sTime); //90->20ms
+    }
+    else{
+      //if sTime is small then counter sharper
+      if(leftS){
+        Serial.print("R");
+        mdBrake(0,1);
+      }
+      else if(rightS){
+        mdBrake(1,0);
+        Serial.print("L");
+      }
+      
+      sTime = millis()-sTime;
+      //endTime+=sTime;
+      Serial.print("CorrectMild: ");
+      Serial.println(sTime);
+      if(sTime>120) sTime = 120;
+      if(sTime>50){
+        sTime=75*(sTime-35)/80+millis();
+        while(sTime>millis()){
+          readSensors();
+          turnCheck();
+          if(!centerS) break;
+        }
+        //sTime-=35;
+        //delay(75*sTime/80);
+      }
+    }
+    sTime = 0;
+    mdSpeed(1,1);
+    leftS = false;
+    rightS = false;
+    centerS = true;
+  }
+  else if(rightS){
+    //Serial.println("OFF TRACK RIGHT");
+  }
+  else if(leftS){
+    //Serial.println("OFF TRACK LEFT");
+  }
+}
+
+void beforeTurn(){
+  centerS = false;
+  rightS = false;
+  leftS = false;
+  offTrack = false;
+  sTime = 0;
+  
+  if(turnState != 5){ //super short leg
+    //stopTurnChecks();
+    //loopTimer.after(timeArray[turnState], startTurnChecks);
+  }
+}
+
+void gotTurn() {
+  
+  //still have to add failsafes, if there is a bad reading it doesn't throw the whole track off?
+  if(startingZone){
+    startingZone=false;
+    mdPower = mdFast;
+    mdSpeed(1, 1);
+    t = millis()+100;
+    while(t>millis()){
+      mdCorrectForward();
+    }
+    return;
+  }
+  if (turnState == 11) {
+   mdSpeed(1, .8);
+   delay(550);
+   mdBrake(1, 1);
+   delay(1000000);
+  }
+  if (turnArray[turnState] == none) {
+    //go forward
+    if (turnState == 1) {
+      t = millis()+90;
+      while(t>millis()){
+        readSensors();
+        //there is a line on the left side, so count the left sensor as not the other 2
+        if(!sensor[2] and !sensor[3]) sensor[1] = true;
+        else sensor[1] = false;
+        mdCorrectForward();
+      }
+    }
+    else {
+     t = millis()+90;
+      while(t>millis()){
+        readSensors();
+        mdCorrectForward();
+      }
+    }
+    //Serial.println("Foward");
+  }
+  else if (turnArray[turnState] == left) {
+    mdBrake(1, 1);
+    straighten();
+    ringDrop();
+    mdLeftTurn();
+    delay(420);
+    if(turnState==3) mdPower = mdSlow;
+    
+    //Serial.println("Left Path called");
+  }
+  else if (turnArray[turnState] == right){
+    if(turnState == 4) mdPower = mdFast;
+    if(turnState == 5){
+      t = millis()+130;
+      while(t>millis()){
+        readSensors();
+        //it will think it is reading sensor 3 when not sensor 1 or 2
+        if(!sensor[1] and !sensor[2]) sensor[3] = true;
+        else sensor[3] = false;
+        mdCorrectForward();
+      }
+      mdBrake(1, 1);
+      ringDrop();
+      mdSpeed(-1, -1);
+      delay(240);//260 was working w/ new battery       
+      mdSpeed(-.5,-.5);
+      delay(50);
+      mdBrake(1,1);
+      delay(80);
+    }
+    else {
+      //mdForward(-.05);
+      mdRightTurn();
+      delay(420);
+    }
+    //Serial.println("Right Path called");
+  }
+  else {
+    mdBrake(1, 1);
+    delay(1000000);
+  }
+  turnState++;
+  int counter = 0;
+  while(counter<4){
+    readSensor(2);
+    if(sensor[2]) counter++;
+    else counter = 0;
+  }
+  beforeTurn();
+}
+
+void straighten(){
+  delay(300);
+  mdSpeed(-.3,-.3);
+    //backwardSlow();
+    int count0 = 0;
+    int count1 = 0;
+    while(1){
+      readSensor(0);
+      readSensor(1);
+      if(sensor[0]){
+        if(sensor[1]) break;
+        count0++;
+      }
+      else if(sensor[1]) count1++;
+      delay(1);
+    }
+    if(count0!=0){
+      pivotRight();
+      if(count0>5){
+        delay(count0*3);
+      }
+      else delay(count0*2);
+    }
+    else{
+      pivotLeft();
+      if(count1>5){
+        delay(count1*3);
+      }
+      else delay(count1*2);
+    }
+    mdBrake(1, 1);
+}
+//EEPROM======================================================================================================
+void EEPROMWritelong(int address, long value)
+{
+  //Decomposition from a long to 4 bytes by using bitshift.
+  //One = Most significant -> Four = Least significant byte
+  byte four = (value & 0xFF);
+  byte three = ((value >> 8) & 0xFF);
+  byte two = ((value >> 16) & 0xFF);
+  byte one = ((value >> 24) & 0xFF);
+  
+  //Write the 4 bytes into the eeprom memory.
+  EEPROM.write(address, four);
+  EEPROM.write(address + 1, three);
+  EEPROM.write(address + 2, two);
+  EEPROM.write(address + 3, one);
+}
+
+long EEPROMReadlong(long address)
+{
+  //Read the 4 bytes from the eeprom memory.
+  long four = EEPROM.read(address);
+  long three = EEPROM.read(address + 1);
+  long two = EEPROM.read(address + 2);
+  long one = EEPROM.read(address + 3);
+  
+  //Return the recomposed long by using bitshift.
+  return ((four << 0) & 0xFF) + ((three << 8) & 0xFFFF) + ((two << 16) & 0xFFFFFF) + ((one << 24) & 0xFFFFFFFF);
+}
+//===========================================RING DROP
+void stopServos() {
+  servoL.write(95);
+  delay(10);
+  servoR.write(95);
+  delay(10);
+}
+void rotateLeft() {
+  servoL.write(servoSpeed);
+  delay(servoTime);
+  stopServos();
+}
+void rotateRight() {
+  servoR.write(servoSpeed);
+  delay(servoTime);
+  stopServos();
+}
+void rotateBoth() {
+  servoL.write(servoSpeed);
+  servoR.write(servoSpeed);
+  delay(servoTime);
+  stopServos();
+}
+
+void ringDrop() {
+  if (servoArray[servoState] == both) {
+    rotateBoth();
+  }
+  else if (servoArray[servoState] == right) {
+    rotateRight();
+  }
+  else if (servoArray[servoState] == left){
+    rotateLeft();
+  }
+  else {
+  } 
+  servoState++;
+}
+//===========================================SENSORS===========================
+void printSensors(){
+  for(int i=0;i<numSensors;i++){
+    Serial.print(sensor[i]);
+  }
+  Serial.println("");
+}
+void readSensor(int num){
+  if(num<numSensors) sensor[num] = sensorState(sensorPins[num]);
+  else {
+    Serial.print("INVALID SENSORS NUM:");
+    Serial.print(num);
+  }
+}
+//read everything
+void readSensors(){
+  for(int i=0;i<numSensors;i++){
+    sensor[i] = sensorState(sensorPins[i]);
+  }
+}
+void printAnalog(){
+  while(1){
+    for(int i=0;i<numSensors;i++){
+      Serial.print(analogRead(sensorPins[i]));
+      Serial.print(":");
+    }
+    Serial.println();
+    delay(200);
+  }
+}
+
+bool sensorState(int sensorIn){
+  //resetSensor(sensorIn);
+  if(analogRead(sensorIn)>500){     // Pin is not getting reflection, which means it is on the black line
+    return true;
+  }
+  else{
+    return false;
+  }
+}
+
+//=============================================MOTOR FUNCTIONS==========================================
+//v signals how much power should go to the Right or Left engine.  Usually set to (-.05)->(.7) starting a turn or mild correction.
+void pivotRight(){
+  mdSpeed(.7, -.5);
+}
+void pivotLeft(){
+  mdSpeed(-.5, .7);
+}
+
+void mdRightTurn() {
+  mdSpeed(1, -.1);
+}
+void mdLeftTurn() {
+  mdSpeed(-.05, 1);
+}
+void middleTurn() {
+  mdBrake(1,1);
+  delay(70);
+  mdSpeed(1,.05);
+  delay(500);
+}
+void undoTurn() {
+  mdSpeed(1,-.5);
+  delay(440);
+}
+void mdSpeed(float l, float r){
+  md.setM1Speed(mdRFlip*mdPower*mdROffset*r);
+  md.setM2Speed(mdLFlip*(mdPower*mdLOffset)*l);
+}
+void mdBrake(float l, float r){
+  if(l!=0)  md.setM2Brake(400*l);
+  if(r!=0) md.setM1Brake(400*r);
+}
+
+void testSensors(){
+  while(1){
+    readSensors();
+    printSensors();
+    delay(200);
+  }
+}
+
+void testStraight(){
+  while(1){
+    mdSpeed(1,1);
+    delay(1000);
+    mdBrake(1,0);
+    delay(400);
+    mdSpeed(1,1);
+    mdBrake(0,1);
+    delay(400);
+    mdBrake(1,1);
+    delay(50000);
+  }
+}
