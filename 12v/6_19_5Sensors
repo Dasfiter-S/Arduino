@@ -2,6 +2,7 @@
  * 6/19
  * am going to try to use straighten(); for the backwardsDrop()
  * added openArm(bool leftArm, bool rightArm)
+ * added a second mdSpeed and mdBrake... mdSpeed/mdBrake(float l, float r, long timeVal); so instead of adding another line doing delay(timeVal) you can just put it in the function.
  * restructured ring drops since they are very uniform.  Every left turn is both arms except 3 and 7.  So  ringDrop(bool leftDrop, bool rightDrop)
  * renamed mdCorrectForward->correctForward
  *   created counterCorrecting, moved the counterCorrection loop out of the sensor[2] if.
