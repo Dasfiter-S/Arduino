@@ -1,7 +1,13 @@
 /*
+ * Nifty fixes..... if the wheel starts falling off or rubber catches while counter correcting it can get off track.  Now counter correct breaks when it stops reading sensor[2]
+ *                  drop 5 can get messed up if the timer makes it happen during a correction/counter correction.  Now finishes the current correct/counter correct then backs up how long it took, to compensate
+ *                  crooked at end of line where it drops ring.  Backs up and counts sensor readings untill it is back on the line and pivots a porportion of that.
+ *                  Need to stick on line even after a sharp angle on to the line.  correction algorithm keeps a strict tollerance, turns as sharp as possible the moment it is at all off line.
+ *                  When the robot is supposed to go straight past a line on the left or right side it sometimes corrects to fallow that line.  Now has a special function call, it ignores that side's sensor and sets it to true only if no other sensors are reading.
+ *
  * 6/20
  * TO DO: lower speeds on backwardsDrop to prevent any skidding.  Turn it into 2 part drop instead of angled.  1 backwards. 1 turn.
- *        servo timers?
+ *        servo timing?
  *        tweak correction algorithm
  *        find if backwards has the same motor ratios as forwards
  *        test drop 5's new code
