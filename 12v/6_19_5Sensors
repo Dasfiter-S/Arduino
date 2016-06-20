@@ -1,4 +1,11 @@
 /*
+ * 6/20
+ * TO DO: lower speeds on backwardsDrop to prevent any skidding.  Turn it into 2 part drop instead of angled.  1 backwards. 1 turn.
+ *        servo timers?
+ *        tweak correction algorithm
+ *        find if backwards has the same motor ratios as forwards
+ *        test drop 5's new code
+ *        fuck with counter correct motor speeds to help against skidding?
  * 6/19
  * am going to try to use straighten(); for the backwardsDrop()
  * added openArm(bool leftArm, bool rightArm)
@@ -12,8 +19,6 @@
  * renamed gotTurn() to handleTurn()
  * removed startingZone
  * removed unnecessary variables
- * -----------------TODO
- * add the servos to timers?
  */
 
 //6/18 BUGS
@@ -84,9 +89,8 @@ void setup() {
   //testSensors();
   //printAnalog();
   
-  openArm(1,0);
+  openArm(1,1);
   backwardsDrop();
-  openArm(0,1);
   turnState = 0;
 }
 
