@@ -1,6 +1,6 @@
 Vendbot library Version 3.0
 ------------------------------
-Grouped all libraries for better version control. Increased the power of the robot from 7v to 12v. The 7v code does not properly support the 12v control of the motors. Started 12v library. Competition code now completed for 12v and can complete the track in 32 seconds.
+Grouped all libraries for better version control. Increased the power of the robot from 7v to 12v. The 7v code does not properly support the 12v control of the motors. Started 12v library. Competition code now completed for 12v and can complete the track in 32 seconds. Had to remove the touchscreen due to power drain from the motors while running and interferring with the total run time.
 
 Vendbot library Version 2.1.0
 -----------------------------
