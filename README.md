@@ -1,3 +1,7 @@
+Vendbot library Version 3.0
+------------------------------
+Grouped all libraries for better version control. Increased the power of the robot from 7v to 12v. The 7v code does not properly support the 12v control of the motors. Started 12v library. Competition code now completed for 12v and can complete the track in 32 seconds.
+
 Vendbot library Version 2.1.0
 -----------------------------
 Competition_2016_WTouch_v2 was added. This file contains touchscreen support. it displays time on rouch intervals. It updates the next and last turns. It also has a diagnostics page that prints out the current line sensor state at a set refresh rate of about 300ms. Also added Arduino V3.HMI for the Touchscreen
