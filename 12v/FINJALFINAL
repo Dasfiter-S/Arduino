@@ -1,0 +1,555 @@
+//straighten 
+
+#include <Servo.h>
+#include "DualVNH5019MotorShield.h"
+DualVNH5019MotorShield md;
+//=========================================STRUCTS=============================================================
+#define none 0
+#define left 1
+#define right 2
+#define both 3
+//========================================SETTINGS======================================================
+int mdFast = 400; //not near a turn
+int mdSlow = 300; //near a turn
+//========================================VARS======================================================
+Servo servoL, servoR;
+int servoSpeed = 40;
+int servoTime = 1200;
+int servoStop = 95;
+
+int sensorPins[5] = {11, 12,13,14,15};
+bool sensor[5] = {false, false, false, false};
+int numSensors=5;
+
+int turnState = 0;
+int turnArray[12] = {left, none, left, left, right, right, right, left, left, none, left, none};
+int numTurns = 12;
+
+unsigned long t = 0;
+unsigned long servoMillis =0;
+
+int mdPower = mdFast; //full power for the motor
+int mdRFlip = 1;
+int mdLFlip = -1;
+float mdLOffset =1;
+float mdROffset = 1;
+//.78~ Offset for low power level
+
+//SETUP=======================================================================================================
+void setup() {
+  initialize();
+  //firstDrop();
+}
+
+void initialize(){
+  Serial.begin(9600);
+  md.init();
+  servoL.attach(36);
+  servoR.attach(34);
+  stopServos();
+  mdPower = mdFast;
+  //mdSpeed(1,1,20000);
+  //testSensors();
+  //printAnalog();
+  waitTillPlacedOnTrack();
+}
+
+//MAIN LOOP===================================================================================================
+//timer, every XXms it is running mdCorrectmdSpeed(1, 1) and after XXms runs startTurnChecks (when it is close to a turn)
+void loop() {
+  readSensors();
+  if(isTurn()){
+    handleTurn(); //moves the robot through the turn
+    readSensors(); //read the new sensor values, so correctForward() works propperly
+  }
+  correctForward();
+}
+
+bool isTurn() {
+  if (!sensor[0] and sensor[3] and sensor[4]) {   //0--11
+      return true;
+  }
+  else if (sensor[0] and sensor[1] and !sensor[4]) {   //11--0
+      return true;
+  }
+  else if (sensor[0] and sensor[2] and sensor[4]) {   //1-1-1 second time we encounter this it has to be a right turn
+      return true;
+  }
+  return false;
+}
+
+bool leftS = false;
+bool rightS = false;
+bool correcting = true;
+bool counterCorrecting = false;
+int lastCorrect = 0;
+unsigned long sTime = 0;
+unsigned long endTime = 0;
+
+
+void correctForward(int line, int timeVal){
+  /* correcting forward for a set amount of time
+   * if left or right is in the argument then the sensor readings adjust for a line coming off from the left or right that needs to be ignored
+   */
+  t = millis()+timeVal;
+  if(line == left){
+    while(t>millis()){
+      readSensors();
+      //there is a line on the left side, so count the left sensor as not the other 2
+      if(!sensor[2] and !sensor[3]) sensor[1] = true;
+      else sensor[1] = false;
+      correctForward();
+    }
+  }
+  else if(line == right){
+    while(t>millis()){
+      readSensors();
+      //there is a line on the right side, so count the right sensor as not the other 2
+      if(!sensor[2] and !sensor[1]) sensor[3] = true;
+      else sensor[3] = false;
+      correctForward();
+    }
+  }
+  else if(line == none){
+    while(t>millis()){
+      readSensors();
+      correctForward();
+    }
+  }
+}
+
+void correctForward(){
+  /*FALLOW STRAIGHT ON THE LINE
+   * NEEDS readSensors() called beforehand
+   * 
+   * If sensor[1] is reading turn sharp right
+   * if sensor[3] is reading turn sharp left
+   * if sensor[2] is reading counter correct from sensor[1]/[3] then go straight
+   * 
+   * if no sensor is reading and the robot is not arcing back onto the line from sensor[1]/[3] then turn right then left to try to re-find the line
+   */
+  //moved counter correction out of if(sensor[2])
+  if(counterCorrecting){
+    if(sTime>millis()){
+      if(!sensor[2]){
+        printSensors();
+        Serial.print("End Counter Correct !Sensor[2]");
+        counterCorrecting = false;
+        mdSpeed(1,1);
+        sTime = 0;
+      }
+    }
+    else{
+      counterCorrecting = false;
+      mdSpeed(1,1);
+      sTime = 0;
+    }
+  }
+  else if(sensor[1] and !sensor[3]){
+    if(!leftS){
+      sTime = millis();
+      leftS = true;
+      rightS = false;
+      correcting = true;
+      mdSpeed(1,1);
+      mdBrake(1,0);
+    }
+  }
+  else if(sensor[3]){
+    if(!rightS){
+      sTime = millis();
+      leftS = false;
+      rightS = true;
+      correcting = true;
+      mdSpeed(1,1);
+      mdBrake(0,1);
+    }
+  }
+  else if(sensor[2] or (sensor[1] and sensor[3])){
+    //40-63 right too strong
+    if(!correcting) return;
+    mdSpeed(.8,.8);
+    if(sTime!=0){
+      //if sTime is small then counter sharper
+      //printSensors();
+      //if last was same direction just go straight
+      sTime = millis()-sTime;
+      Serial.println(sTime);
+      if(sTime>120) sTime = 120;
+      if(leftS){
+        Serial.print("FROM LEFT: ");
+        
+        if(lastCorrect == left or lastCorrect==0){
+          if(sTime>50) mdBrake(0,.6);
+          else mdBrake(0,.8);
+        }
+        else{
+          mdBrake(0,1);
+        }
+         lastCorrect = left;
+      }
+      else if(rightS){
+        Serial.print("FROM RIGHT: ");
+        
+        if(lastCorrect == right or lastCorrect==0){
+          if(sTime>50) mdBrake(.6,0);
+          else mdBrake(.8,0);
+        }
+        else{
+           mdBrake(1,0);
+        }
+        lastCorrect = right;
+      }
+      //Serial.print("CorrectMild: ");
+      //Serial.println(sTime);
+      if(sTime>60){
+        sTime=65*(sTime)/80+millis();
+        counterCorrecting = true;
+      }
+      else if(sTime>20){
+        sTime=50*(sTime)/80+millis();
+        counterCorrecting = true;
+      }/*
+      else if(sTime>10){
+        sTime=30*(sTime)/80+millis();
+        counterCorrecting = true;
+      }*/
+    }
+    leftS = false;
+    rightS = false;
+    correcting = false;
+  }
+}
+
+void resetCorrectionVars(){
+  /* reset all the correctForward variables after a turn is completed
+   *  
+   */
+  rightS = false;
+  leftS = false;
+  correcting = true;
+  counterCorrecting = false;
+  sTime = 0;
+  lastCorrect = 0;
+}
+
+void handleTurn() {
+  
+  if (turnState == (numTurns-1)) {
+    //FINISHED TRACK
+    mdSpeed(1, .8, 550);
+    mdBrake(1, 1, 1000000);
+  }
+  else if (turnArray[turnState] == none) {
+    //go forward
+    correctForward(left, 150);
+  }
+  else if (turnArray[turnState] == left) {
+    mdBrake(1, 1, 100);
+    if(turnState ==3 or turnState ==7) startServo(0,1);
+    else startServo(1,1);
+    straighten();
+    mdBrake(1,1, (servoTime/2)+200);
+    if(turnState==7) delay(100);
+    mdLeftTurn(1);
+    if(servoMillis>millis()) delay(servoMillis-millis());
+    stopServos();
+    if(turnState==3) mdPower = mdSlow;
+  }
+  else if (turnArray[turnState] == right){
+    if(turnState == 4){
+      mdSpeed(1,-.1, 300);
+      mdPower = mdFast;
+    }
+    else if(turnState == 5){
+      while(correcting or counterCorrecting){
+        correctForward();
+      }
+      startServo(1,0);
+      mdBrake(1,1, 80);
+      mdSpeed(1,0, 105);
+      mdBrake(1,1, (servoTime/2)+400);
+      mdRightTurn(1);
+      delay(servoMillis-millis());
+      stopServos();
+      turnState++;
+    }
+    else {
+      mdRightTurn(300);
+    }
+    //Serial.println("Right Path called");
+  }
+  else {
+    mdBrake(1, 1, 1000000);
+  }
+  turnState++;
+  int counter = 0;
+  while(counter<4){
+    readSensor(2);
+    if(sensor[2]) counter++;
+    else counter = 0;
+  }
+  resetCorrectionVars();
+}
+
+long findTimeDiff(int sens1, int sens2){
+  /*finds the time difference between when the first sensor pings and when the second
+   * used to find the angle the robot is on a perpendicular line in order to correct straight.
+   */
+  long timeDiff = 0;
+  bool sens1Bool = false;
+  bool sens2Bool = false;
+  while(1){
+    readSensor(sens1);
+    readSensor(sens2);
+    if(sens1Bool and !sensor[sens1]) sens1Bool = false;
+    else if(sens2Bool and !sensor[sens2]) sens2Bool = false;
+    if(!sens1Bool and sensor[sens1]){
+      if(sens2Bool) return timeDiff - millis();
+      timeDiff = millis();
+      sens1Bool = true;
+    }
+    if(!sens2Bool and sensor[sens2]){
+      if(sens1Bool) return millis()-timeDiff;
+      timeDiff = millis();
+      sens2Bool = true;
+    }
+  }
+}
+
+void straighten(){
+  /*USED FOR LEFT TURN RING DROPS
+   * the robot overshoots the drop point, so this method backs it up and straightens it to near perfection
+   */
+  long timeDiff;
+  mdSpeed(-.3,-.3);
+  timeDiff = findTimeDiff(0, 1);
+  Serial.print("TimeDiff: ");
+  Serial.println(timeDiff);
+  if(timeDiff>20){
+    pivotRight(timeDiff*2);
+  }
+  else if(timeDiff<-20) {
+    timeDiff*=-1;
+    pivotLeft(timeDiff*2);
+  }
+  mdBrake(1, 1);
+}
+//FIRST DROP CODE=============================================================================================
+void firstDrop(){
+  
+  mdSpeed(-.3,-.3);
+  firstDropStraighten();
+  openArms();
+  firstDropGetToDrop();
+  
+  delay(servoMillis-millis()); //wait untill servos are set
+  stopServos();
+  startServo(1,0);
+  delay(servoTime); //drop ring
+  stopServos();
+  
+  firstDropGetOnTrack();
+  turnState = 0;
+}
+void firstDropStraighten(){
+  /* FOR FIRST DROP
+   *  straightens the robot on the first line it crosses and finds out how off each of the motors is running
+   */
+   
+  long timeDiff;
+  timeDiff = findTimeDiff(0,4); //ranges from -45 to +45
+  Serial.println(timeDiff);
+  mdBrake(1,1,100);
+  //needs to perfectly straighten out the robot and adjust lOffset or rOffset MILDLY depending on the timeDiff
+  if(timeDiff>0){
+    //positive time difference, so going leftward (instead of straight back)
+    if(timeDiff>100) timeDiff = 100;
+    mdLOffset -=(float)timeDiff/1000;  //1->.9 lOffset as timeDiff goes from 0 to ?
+    Serial.println(mdLOffset);
+    if(timeDiff<12) mdSpeed(.9,.85-(float)timeDiff/200, 90);
+    else mdSpeed(.9,.85, 90);
+  }
+  else{
+    //negative time difference, going rightward (instead of straight back)
+    timeDiff*=-1;
+    if(timeDiff>100) timeDiff = 100;
+    mdROffset -=(float)timeDiff/1000;
+    Serial.println(mdROffset);
+    if(timeDiff<12) mdSpeed(.85-(float)timeDiff/200,.9, 90);
+    else mdSpeed(.85,.9, 90);
+  }
+  mdBrake(1,1,300);
+}
+
+void firstDropGetToDrop(){
+  /* FOR FIRST DROP
+   *  runs the robot forward untill it is in place to drop the ring
+   */
+  mdSpeed(-.5,.2,30);
+  mdBrake(1,1,50);
+  mdSpeed(-.8,-.8,450); //ram into wall
+  mdSpeed(-.5,.1,40); //pivot
+  mdBrake(1,1);
+}
+
+
+void firstDropGetOnTrack(){
+  /* FOR FIRST DROP
+   *  guides the robot onto the line after dropping the first ring
+   */
+  mdSpeed(.5,-.1,25); //un-pivot
+  mdSpeed(1,1,500); //ram into forward wall
+  mdSpeed(.5,.5,600); //a lil slower
+  mdBrake(1,1,60);
+  mdSpeed(-.7,.4,440); //rotate 95~ degrees
+  mdBrake(1,1,150);
+  mdSpeed(1,1, 500); //go forward hugging wall
+  mdBrake(.1,0);
+  int counter = 0;
+  while(counter<4){
+    readSensor(4); //untill it hits a line
+    if(sensor[4]) counter++;
+    else counter = 0;
+  }
+  mdSpeed(0,1,100); //go left
+  counter = 0;
+  while(counter<4){
+    readSensor(1);
+    readSensor(2); //untill hitting a line
+    if(sensor[1] or sensor[2]) counter++;
+    else counter = 0;
+  }
+  t = millis()+120;
+  while(t>millis()){
+    readSensors(); 
+    correctForward(); //correct onto the line
+  }
+}
+//===========================================RING DROP
+void stopServos() {
+  servoL.write(servoStop);
+  servoR.write(servoStop);
+}
+
+void startServo(bool leftServo, bool rightServo) {
+  if (rightServo) servoR.write(servoSpeed);
+  if (leftServo) servoL.write(servoSpeed);
+  servoMillis = millis()+servoTime;
+  //return (servoTime)/2;
+  //stopServos();
+}
+
+void openArms(){
+  // AND IIIIII WILL ALWAYS LOVE YOUUUUUUU!
+  startServo(1, 1);
+  servoMillis = millis()+servoTime/2;
+}
+//===========================================SENSORS===========================
+void printSensors(){
+  for(int i=0;i<numSensors;i++){
+    Serial.print(sensor[i]);
+  }
+  Serial.println("");
+}
+void readSensor(int num){
+  if(num<numSensors) sensor[num] = sensorState(sensorPins[num]);
+  else {
+    Serial.print("INVALID SENSORS NUM:");
+    Serial.print(num);
+  }
+}
+//read everything
+void readSensors(){
+  for(int i=0;i<numSensors;i++){
+    sensor[i] = sensorState(sensorPins[i]);
+  }
+}
+
+bool sensorState(int sensorIn){
+  //resetSensor(sensorIn);
+  if(analogRead(sensorIn)>500){     // Pin is not getting reflection, which means it is on the black line
+    return true;
+  }
+  else{
+    return false;
+  }
+}
+
+//=============================================MOTOR FUNCTIONS==========================================
+//v signals how much power should go to the Right or Left engine.  Usually set to (-.05)->(.7) starting a turn or mild correction.
+void pivotRight(long timeVal){
+  mdSpeed(.7, -.5);
+  delay(timeVal);
+}
+void pivotLeft(long timeVal){
+  mdSpeed(-.5, .7);
+  delay(timeVal);
+}
+
+void mdRightTurn(long timeVal) {
+  mdSpeed(1, -.1);
+  delay(timeVal);
+}
+void mdLeftTurn(long timeVal) {
+  mdSpeed(-.05, 1);
+  delay(timeVal);
+}
+void mdSpeed(float l, float r){
+  md.setM1Speed(mdRFlip*(mdPower*mdROffset)*r);
+  md.setM2Speed(mdLFlip*(mdPower*mdLOffset)*l);
+}
+void mdSpeed(float l, float r, long timeVal){
+  mdSpeed(l,r);
+  delay(timeVal);
+}
+void mdBrake(float l, float r){
+  if(l!=0)  md.setM2Brake(400*l);
+  if(r!=0) md.setM1Brake(400*r);
+}
+void mdBrake(float l, float r, long timeVal){
+  mdBrake(l,r);
+  delay(timeVal);
+}
+//====DEBUG METHODS=====================
+
+void testSensors(){
+  while(1){
+    readSensors();
+    printSensors();
+    delay(200);
+  }
+}
+
+void printAnalog(){
+  while(1){
+    for(int i=0;i<numSensors;i++){
+      Serial.print(analogRead(sensorPins[i]));
+      Serial.print(":");
+    }
+    Serial.println();
+    delay(200);
+  }
+}
+
+void waitTillPlacedOnTrack(){
+  /*so the arduino doesn't start the code while plugged into the computer
+   * 
+   */
+  int count = 0;
+  while(1){  
+    readSensor(4);
+    if(!sensor[4]){
+      readSensor(0);
+      readSensor(2);
+      if(sensor[2] and !sensor[0]){
+        if(count>4){
+          Serial.println("on track, starting code");
+          break;
+        }
+        else count++;
+      }
+    }
+    delay(100);
+  }
+}
